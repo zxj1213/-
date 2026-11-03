@@ -1,0 +1,17 @@
+# 学迹 StudyFlow - FastAPI 后端 systemd 服务
+# 使用方法：上传到 /etc/systemd/system/studyflow.service
+# systemctl daemon-reload && systemctl enable --now studyflow
+
+[Unit]
+Description=StudyFlow FastAPI backend
+After=network.target
+
+[Service]
+WorkingDirectory=/var/www/studyflow/backend
+ExecStart=/var/www/studyflow/backend/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=3
+EnvironmentFile=/var/www/studyflow/backend/.env
+
+[Install]
+WantedBy=multi-user.target
