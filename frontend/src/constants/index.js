@@ -59,6 +59,16 @@ export const TABS = [
   { path: '/me', label: '我的', icon: 'User' }
 ]
 
+export const PersonalSections = [
+  { id: 'profile', label: '个人资料', icon: 'User' },
+  { id: 'widgets', label: '桌面服务卡片', icon: 'Monitor' },
+  { id: 'devices', label: '设备展示（演示）', icon: 'Iphone' },
+  { id: 'account', label: '账号与数据', icon: 'Key' },
+  { id: 'settings', label: '设置', icon: 'Setting' },
+  { id: 'library', label: '本地资料库（演示）', icon: 'FolderOpened' },
+  { id: 'about', label: '关于', icon: 'InfoFilled' }
+]
+
 // 日期工具
 export function pad(n) {
   return String(n).padStart(2, '0')

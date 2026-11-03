@@ -20,6 +20,7 @@ assert.equal(recordPractice({mastery:50},20,10).mastery,50)
 const component = readFileSync('frontend/src/components/StudyTimer.vue','utf8')
 function fn(name) { const start=component.indexOf(`function ${name}(`); const end=component.indexOf('\n}',start)+2; return component.slice(start,end) }
 const ctx = {session:{value:{status:'running',lastTick:Date.now()-61000,accumulatedSeconds:0}},accumulated:{value:0},targetMinutes:{value:1},showFinish:{value:false},interval:null,clearInterval(){},store:{pauseSession(n){ctx.session.value.status='paused';ctx.pauses++;assert.equal(n,60)}},pauses:0}
-vm.createContext(ctx);vm.runInContext([fn('tick'),fn('pause'),fn('openFinish'),'tick();tick();'].join('\n'),ctx)
+ctx.isRunning = { get value() { return ctx.session.value?.status === 'running' } }
+vm.createContext(ctx);vm.runInContext([fn('syncElapsed'),fn('tick'),fn('pause'),fn('openFinish'),'tick();tick();'].join('\n'),ctx)
 assert.equal(ctx.pauses,1);assert.equal(ctx.showFinish.value,true)
 console.log('PASS: budget conservation, locked/completed plans, expired exams, invalid practice, real timer functions')

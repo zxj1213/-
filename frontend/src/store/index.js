@@ -161,6 +161,8 @@ export const useAppStore = defineStore('app', {
       if (!this.authState) this.authState = { isAuthenticated: true }
       this.authState.currentUserId = user.id
       this.authState.currentUserName = user.name
+      // 账号身份来自注册记录，个人资料只保存可编辑的补充信息。
+      this.userInfo = { ...(this.userInfo || {}), id: user.id, name: user.name }
       this.save()
     },
 
@@ -172,6 +174,7 @@ export const useAppStore = defineStore('app', {
 
       const users = this._readUsers()
       let user = users.find(u => u.name === name)
+      const registered = !user
       if (user) {
         if (user.hash !== demoHash(password)) return { ok: false, msg: '密码错误' }
       } else {
@@ -183,7 +186,7 @@ export const useAppStore = defineStore('app', {
       localStorage.setItem(StorageConstants.KEY_CURRENT_USER, user.id)
       this._loadUserState(user)
       this.applyTheme()
-      return { ok: true, msg: '欢迎回来，' + user.name, registered: true }
+      return { ok: true, msg: '欢迎回来，' + user.name, registered }
     },
 
     /** 退出登录：持久化当前状态并回到登录页 */
@@ -222,7 +225,10 @@ export const useAppStore = defineStore('app', {
 
     // ==================== 数据加载/持久化 ====================
     loadMockData() {
-      this.userInfo = mock.getMockUserInfo()
+      this.userInfo = {
+        id: '', name: '', avatar: '', school: '', major: '', studentId: '',
+        email: '', phone: '', grade: '', enrollmentYear: null, expectedGraduationYear: null
+      }
       this.settings = mock.getMockAppSettings()
       this.authState = { isAuthenticated: true, privateLibraryEncrypted: false }
       this.widgetConfig = mock.getMockWidgetConfig()
@@ -256,11 +262,13 @@ export const useAppStore = defineStore('app', {
     resetData() {
       const uid = this.currentUserId
       const uname = this.currentUserName
+      const profile = this.userInfo ? { ...this.userInfo } : null
       localStorage.removeItem(uid ? StorageConstants.stateKeyOf(uid) : StorageConstants.KEY_APP_STATE)
       this.loadMockData()
       if (uid) {
         this.authState.currentUserId = uid
         this.authState.currentUserName = uname
+        this.userInfo = { ...profile, id: uid, name: uname }
       }
       this.save()
     },
@@ -285,8 +293,16 @@ export const useAppStore = defineStore('app', {
 
     // ==================== 用户与设置 ====================
     updateProfile(data) {
-      Object.assign(this.userInfo, data)
-      this.save()
+      if (!this.currentUserId) return false
+      const profile = { ...(this.userInfo || {}) }
+      for (const key of ['school', 'major', 'email']) {
+        if (typeof data[key] === 'string') profile[key] = data[key].trim()
+      }
+      if (['', '大一', '大二', '大三', '大四'].includes(data.grade)) profile.grade = data.grade
+      profile.id = this.currentUserId
+      profile.name = this.currentUserName
+      this.userInfo = profile
+      return this.save() !== false
     },
 
     updateSettings(patch) {

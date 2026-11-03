@@ -30,7 +30,7 @@
             v-for="tab in tabs"
             :key="tab.path"
             class="menu-item"
-            :class="{ active: route.path === tab.path }"
+            :class="{ active: route.path === tab.path || route.path.startsWith(tab.path + '/') }"
             @click="goTab(tab.path)"
           >
             <el-icon class="menu-icon"><component :is="tab.icon" /></el-icon>

@@ -72,13 +72,48 @@
 
     <!-- 时长选择 -->
     <div class="durations">
-      <span
+      <button
         v-for="d in [25, 45, 60]"
         :key="d"
+        type="button"
         class="chip"
         :class="{ active: targetMinutes === d }"
+        :disabled="!!session"
         @click="setTarget(d)"
-      >{{ d }}分钟</span>
+      >{{ d }}分钟</button>
+    </div>
+
+    <div class="custom-duration">
+      <div class="duration-heading">
+        <span>自定义时长</span>
+        <div class="duration-input">
+          <el-input-number
+            v-model="durationInput"
+            :min="0"
+            :max="120"
+            :step="1"
+            :precision="0"
+            :disabled="!!session"
+            controls-position="right"
+            size="small"
+            aria-label="自定义专注时长（分钟）"
+          />
+          <span>分钟</span>
+        </div>
+      </div>
+      <el-slider
+        v-model="durationInput"
+        :min="0"
+        :max="120"
+        :step="1"
+        :disabled="!!session"
+        :format-tooltip="formatMinutes"
+        aria-label="滑动设置专注时长，0到120分钟"
+      />
+      <div class="duration-scale"><span>0分钟</span><span>1小时</span><span>2小时</span></div>
+      <div class="duration-hint">
+        {{ session ? '本次时长已锁定，结束专注后可调整' : targetMinutes > 0 ? `目标：${formatMinutes(targetMinutes)}` : '请设置大于0分钟的专注时长' }}
+      </div>
     </div>
 
     <!-- 今日任务进度 -->
@@ -97,7 +132,7 @@
     </div>
 
     <div class="controls">
-      <el-button v-if="!isRunning" type="primary" round size="large" @click="start" :disabled="!boundTaskId">
+      <el-button v-if="!isRunning" type="primary" round size="large" @click="start" :disabled="!boundTaskId || targetMinutes <= 0">
         <el-icon><VideoPlay /></el-icon>&nbsp;{{ accumulated > 0 ? '继续专注' : '开始专注' }}
       </el-button>
       <el-button v-else type="warning" round size="large" @click="pause">
@@ -149,6 +184,10 @@ const props = defineProps({
 const boundTaskId = ref(props.initialTask?.id || '')
 const kpName = ref('')
 const targetMinutes = ref(25)
+const durationInput = computed({
+  get: () => targetMinutes.value,
+  set: (value) => setTarget(value)
+})
 const accumulated = ref(0) // 已专注秒数(不含暂停段)
 const showFinish = ref(false)
 const finish = ref({ taskDone: 'yes', correctRate: 80 })
@@ -185,13 +224,16 @@ const progressPct = computed(() =>
 )
 
 const circumference = 2 * Math.PI * 52
-const progress = computed(() => Math.min(accumulated.value / (targetMinutes.value * 60), 1))
+const progress = computed(() => targetMinutes.value > 0
+  ? Math.min(accumulated.value / (targetMinutes.value * 60), 1)
+  : 0)
 const dashOffset = computed(() => circumference * (1 - progress.value))
 
 const display = computed(() => {
-  const m = Math.floor(accumulated.value / 60)
+  const h = Math.floor(accumulated.value / 3600)
+  const m = Math.floor(accumulated.value / 60) % 60
   const s = accumulated.value % 60
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}:00`
+  return [h, m, s].map(n => String(n).padStart(2, '0')).join(':')
 })
 
 const stateText = computed(() => {
@@ -201,20 +243,29 @@ const stateText = computed(() => {
 })
 
 // ---------- 真实时间戳计时(A4/C3)：基于 Date.now 计算，暂停段不计入 ----------
-function tick(finishWhenDue = true) {
+function syncElapsed() {
   if (!session.value || session.value.status !== 'running') return
-  const elapsed = Math.floor((Date.now() - session.value.lastTick) / 1000)
-  if (elapsed > 0) {
-    accumulated.value = session.value.accumulatedSeconds + elapsed
-    if (accumulated.value >= targetMinutes.value * 60) {
-      accumulated.value = targetMinutes.value * 60
-      if (finishWhenDue) openFinish()
-      return
-    }
+  const elapsed = Math.max(0, Math.floor((Date.now() - session.value.lastTick) / 1000))
+  accumulated.value = Math.min(
+    session.value.accumulatedSeconds + elapsed,
+    targetMinutes.value * 60
+  )
+}
+
+function tick() {
+  if (!isRunning.value) return
+  syncElapsed()
+  if (accumulated.value >= targetMinutes.value * 60) {
+    openFinish()
   }
 }
 
 function start() {
+  if (isRunning.value) return
+  if (targetMinutes.value <= 0) {
+    ElMessage.warning('请设置大于0分钟的专注时长')
+    return
+  }
   if (!boundTaskId.value) {
     ElMessage.warning('请先选择要专注的任务')
     return
@@ -240,12 +291,16 @@ function start() {
   } else {
     store.resumeSession()
   }
-  interval = setInterval(tick, 1000)
+  tick()
+  if (isRunning.value) {
+    clearInterval(interval)
+    interval = setInterval(tick, 1000)
+  }
 }
 
 function pause() {
   if (!session.value) return
-  tick(false) // 仅计算秒数，避免再次进入结束流程
+  syncElapsed() // 只结算时间，避免到点时与 openFinish 相互调用
   store.pauseSession(accumulated.value)
   clearInterval(interval)
   interval = null
@@ -253,7 +308,8 @@ function pause() {
 
 function setTarget(min) {
   if (isRunning.value || session.value) return
-  targetMinutes.value = min
+  if (typeof min !== 'number' || !Number.isFinite(min)) return
+  targetMinutes.value = Math.min(120, Math.max(0, Math.round(min)))
   accumulated.value = 0
 }
 
@@ -377,10 +433,11 @@ onMounted(() => {
     accumulated.value = s.accumulatedSeconds || 0
     if (s.status === 'running') {
       // 后台漂移修正：按真实时间戳补算
-      accumulated.value += Math.floor((Date.now() - s.lastTick) / 1000)
-      store.updateSessionSeconds(accumulated.value)
-      interval = setInterval(tick, 1000)
-      ElMessage.info(`已恢复「${s.taskTitle?.slice(0, 12)}」的专注会话`)
+      tick()
+      if (isRunning.value) {
+        interval = setInterval(tick, 1000)
+        ElMessage.info(`已恢复「${s.taskTitle?.slice(0, 12)}」的专注会话`)
+      }
     }
   } else if (props.initialTask) {
     boundTaskId.value = props.initialTask.id
@@ -397,7 +454,7 @@ watch(() => props.initialTask, (t) => {
 
 onUnmounted(() => {
   // 组件卸载时结算一次，保证切换页面不丢秒数
-  tick()
+  syncElapsed()
   if (session.value) store.updateSessionSeconds(accumulated.value)
   clearInterval(interval)
 })
@@ -519,6 +576,52 @@ defineExpose({ setCourseAndTask })
   justify-content: center;
   gap: 8px;
   margin: 8px 0 14px;
+}
+
+.durations button {
+  font-family: inherit;
+}
+
+.durations button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.custom-duration {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--divider);
+  border-radius: 10px;
+  text-align: left;
+}
+
+.duration-heading,
+.duration-input,
+.duration-scale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.duration-heading {
+  font-size: 12px;
+  color: var(--text-primary);
+  flex-wrap: wrap;
+}
+
+.duration-input :deep(.el-input-number) {
+  width: 110px;
+}
+
+.duration-scale,
+.duration-hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.duration-hint {
+  margin-top: 8px;
 }
 
 .task-progress {

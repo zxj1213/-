@@ -1,19 +1,31 @@
 <template>
-  <div class="page">
+  <div class="personal-center">
+    <nav class="personal-menu" aria-label="我的二级菜单">
+      <div class="personal-menu-title">个人中心</div>
+      <div class="personal-menu-items">
+        <router-link v-for="item in PersonalSections" :key="item.id" :to="`/me/${item.id}`"
+          class="personal-menu-link" :class="{ active: activeSection.id === item.id }"
+          :aria-current="activeSection.id === item.id ? 'page' : undefined">
+          <el-icon><component :is="item.icon" /></el-icon>
+          <span>{{ item.label }}</span>
+        </router-link>
+      </div>
+    </nav>
+    <section class="page" aria-labelledby="personal-section-title">
+      <h1 id="personal-section-title" class="personal-section-title">{{ activeSection.label }}</h1>
     <!-- 用户头部 -->
-    <div class="card user-head">
+    <div v-if="activeSection.id === 'profile'" class="card user-head">
       <div class="avatar" @click="showEdit = true">👤</div>
       <div class="uh-body" @click="showEdit = true">
-        <div class="uh-name">{{ store.userInfo?.name }} <span class="uh-edit">›</span></div>
-        <div class="uh-school">{{ store.userInfo?.school }} · {{ store.userInfo?.major }}</div>
-        <div class="uh-id">学号: {{ store.userInfo?.studentId }} · {{ grade }} · {{ store.userInfo?.email }}</div>
+        <div class="uh-name">{{ store.currentUserName }} <span class="uh-edit">›</span></div>
+        <div class="uh-school">{{ store.userInfo?.school || '学校待填写' }} · {{ store.userInfo?.major || '专业待填写' }}</div>
+        <div class="uh-id">{{ grade }} · {{ store.userInfo?.email || '邮箱待填写' }}</div>
       </div>
       <el-button round plain type="primary" @click="showEdit = true">编辑资料</el-button>
     </div>
 
-    <div class="grid-2">
       <!-- 桌面服务卡片预览 -->
-      <div class="card">
+      <div v-if="activeSection.id === 'widgets'" class="card">
         <div class="card-title">
           <span class="t">桌面服务卡片</span>
           <el-button size="small" round plain type="primary">添加到桌面</el-button>
@@ -52,7 +64,7 @@
       </div>
 
       <!-- 设备展示（演示） -->
-      <div class="card">
+      <div v-if="activeSection.id === 'devices'" class="card">
         <div class="card-title">
           <span class="t">设备展示（演示）</span>
           <span class="more">{{ devices.filter(d => d.isConnected).length }}台示例设备</span>
@@ -74,10 +86,9 @@
           ℹ 当前为本地演示，数据仅保存在此浏览器，尚未接入跨设备同步。
         </div>
       </div>
-    </div>
 
     <!-- 账号与数据(A2：本地账号、数据隔离、导出/删除/退出) -->
-    <div class="card account-card">
+    <div v-if="activeSection.id === 'account'" class="card account-card">
       <div class="card-title">
         <span class="t">🔑 账号与数据</span>
         <span class="tag" style="background: #4CAF5015; color: #4CAF50">本地演示账号</span>
@@ -94,9 +105,8 @@
       </div>
     </div>
 
-    <div class="grid-2">
       <!-- 设置 -->
-      <div class="card settings">
+      <div v-if="activeSection.id === 'settings'" class="card settings">
         <div class="settings-title">设置</div>
         <div class="setting-item" @click="cycleTheme">
           <span class="si-emoji">🌙</span>
@@ -154,7 +164,7 @@
       </div>
 
       <!-- 加密私有库 -->
-      <div class="card">
+      <div v-if="activeSection.id === 'library'" class="card">
         <div class="card-title">
           <span class="t">🔒 本地资料库（演示）</span>
           <span class="tag" :style="authStyle">{{ store.authState.isAuthenticated ? '已认证' : '未认证' }}</span>
@@ -175,10 +185,9 @@
           <el-button size="small" round @click="libraryUnlocked = false">锁定</el-button>
         </div>
       </div>
-    </div>
 
     <!-- 关于 -->
-    <div class="card settings">
+    <div v-if="activeSection.id === 'about'" class="card settings">
       <div class="settings-title">关于</div>
       <div class="about-grid">
         <div class="about-item"><span>应用名称</span><span>学迹 StudyFlow</span></div>
@@ -192,10 +201,24 @@
 
     <!-- 编辑资料弹窗 -->
     <el-dialog v-model="showEdit" title="编辑个人资料" width="88%" align-center>
-      <div class="edit-row"><span class="er-label">姓名</span><el-input v-model="editForm.name" size="small" /></div>
+      <div class="edit-row"><span class="er-label">用户名</span><el-input :model-value="store.currentUserName" size="small" readonly /></div>
       <div class="edit-row"><span class="er-label">学校</span><el-input v-model="editForm.school" size="small" /></div>
       <div class="edit-row"><span class="er-label">专业</span><el-input v-model="editForm.major" size="small" /></div>
-      <div class="edit-row"><span class="er-label">学号</span><el-input v-model="editForm.studentId" size="small" /></div>
+      <div class="edit-row">
+        <span class="er-label">年级</span>
+        <button type="button" class="grade-picker" aria-haspopup="dialog" :aria-expanded="showGradePicker" @click="showGradePicker = true">
+          <span>{{ editForm.grade || '请选择年级' }}</span><span aria-hidden="true">›</span>
+        </button>
+      </div>
+      <div class="edit-row"><span class="er-label">邮箱</span><el-input v-model="editForm.email" size="small" /></div>
+      <el-drawer v-model="showGradePicker" title="选择年级" direction="btt" size="auto" append-to-body>
+        <div class="grade-options">
+          <button v-for="option in gradeOptions" :key="option" type="button" class="grade-option"
+            :class="{ selected: editForm.grade === option }" :aria-pressed="editForm.grade === option" @click="selectGrade(option)">
+            <span>{{ option }}</span><span v-if="editForm.grade === option" aria-hidden="true">✓</span>
+          </button>
+        </div>
+      </el-drawer>
       <template #footer>
         <el-button @click="showEdit = false">取消</el-button>
         <el-button type="primary" @click="saveProfile">保存</el-button>
@@ -210,17 +233,26 @@
         <el-button type="primary" @click="passwordAuth">解锁</el-button>
       </template>
     </el-dialog>
+    </section>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { setApiToken } from '../services/api'
 import { useAppStore } from '../store'
-import { todayStr, daysBetween } from '../constants'
+import { todayStr, daysBetween, PersonalSections } from '../constants'
 
 const store = useAppStore()
+const props = defineProps({ section: { type: String, default: 'profile' } })
+const activeSection = computed(() => PersonalSections.find(item => item.id === props.section) || PersonalSections[0])
+
+watch(() => props.section, () => {
+  showEdit.value = false
+  showPassword.value = false
+  passwordInput.value = ''
+})
 
 const devices = [
   { deviceId: 'device_001', deviceType: 'phone', deviceName: 'Mate 70 Pro', isConnected: true, lastSyncTime: '刚刚' },
@@ -230,15 +262,36 @@ const devices = [
 
 const libraryUnlocked = ref(false)
 const showEdit = ref(false)
+const showGradePicker = ref(false)
+const gradeOptions = ['大一', '大二', '大三', '大四']
 const showPassword = ref(false)
 const passwordInput = ref('')
-const editForm = reactive({ name: '', school: '', major: '', studentId: '' })
+const editForm = reactive({ school: '', major: '', grade: '', email: '' })
+
+watch(showEdit, (open) => {
+  if (!open) {
+    showGradePicker.value = false
+    return
+  }
+  for (const key of Object.keys(editForm)) {
+    editForm[key] = store.userInfo?.[key] || ''
+  }
+  editForm.grade = gradeOptions.includes(grade.value) ? grade.value : ''
+})
 
 const grade = computed(() => {
-  const diff = new Date().getFullYear() - (store.userInfo?.enrollmentYear || 2024)
+  if (gradeOptions.includes(store.userInfo?.grade)) return store.userInfo.grade
+  if (!store.userInfo?.enrollmentYear) return '年级待完善'
+  const diff = new Date().getFullYear() - store.userInfo.enrollmentYear
   const grades = ['大一', '大二', '大三', '大四']
   return grades[Math.min(Math.max(diff, 0), 3)]
 })
+
+function selectGrade(value) {
+  if (!gradeOptions.includes(value)) return
+  editForm.grade = value
+  showGradePicker.value = false
+}
 
 const todayCourses = computed(() => store.todayAgenda?.courses?.length ?? 2)
 const pendingCount = computed(() => store.pendingTasks.length)
@@ -302,7 +355,7 @@ function passwordAuth() {
 }
 
 function saveProfile() {
-  store.updateProfile({ ...editForm })
+  if (!store.updateProfile({ ...editForm })) return
   showEdit.value = false
   ElMessage.success('资料已更新')
 }
@@ -346,7 +399,70 @@ function doLogout() {
 </script>
 
 <style scoped>
+.personal-center {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  align-items: start;
+  gap: 28px;
+}
+
+.personal-menu {
+  position: sticky;
+  top: 20px;
+  padding: 16px 10px;
+  border: 1px solid var(--divider);
+  border-radius: 16px;
+  background: var(--bg-card);
+}
+
+.personal-menu-title {
+  padding: 4px 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.personal-menu-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.personal-menu-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.personal-menu-link:hover,
+.personal-menu-link.active {
+  background: var(--bg-primary);
+  color: var(--primary);
+}
+
+.personal-menu-link.active {
+  font-weight: 600;
+}
+
+.personal-menu-link:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.personal-section-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
 .page {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--section-gap);
@@ -607,7 +723,7 @@ function doLogout() {
 
 .about-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0 24px;
 }
 
@@ -635,6 +751,28 @@ function doLogout() {
   }
 }
 
+@media (max-width: 900px) {
+  .personal-center {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+  .personal-menu {
+    position: static;
+    min-width: 0;
+    padding: 8px;
+  }
+  .personal-menu-title { display: none; }
+  .personal-menu-items {
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 3px;
+  }
+  .personal-menu-link {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+}
+
 .edit-row {
   display: flex;
   align-items: center;
@@ -647,6 +785,43 @@ function doLogout() {
   font-size: 13px;
   color: var(--text-secondary);
   flex-shrink: 0;
+}
+
+.grade-picker,
+.grade-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font: inherit;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--divider);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.grade-picker {
+  flex: 1;
+  padding: 6px 12px;
+  font-size: 12px;
+  text-align: left;
+}
+
+.grade-options {
+  display: grid;
+  gap: 10px;
+  max-width: 640px;
+  margin: 0 auto;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+.grade-option {
+  padding: 16px;
+}
+
+.grade-option.selected {
+  color: var(--primary);
+  border-color: var(--primary);
 }
 @media (max-width: 600px) {
   .user-head { flex-wrap: wrap; }
