@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """AI 路由：对话(大模型+规则降级) / OCR"""
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter, File, UploadFile, HTTPException
+import logging
+logger = logging.getLogger(__name__)
 
 from app.schemas import ChatRequest, ChatResponse
 from app.services import llm
@@ -40,27 +42,22 @@ async def chat(req: ChatRequest):
     try:
         reply = await llm.chat_with_llm(req.message, [m.model_dump() for m in req.history])
         return ChatResponse(reply=reply, engine="llm")
-    except Exception:
+    except Exception as exc:
+        logger.warning("chat fallback: %s", type(exc).__name__)
         return ChatResponse(reply=rule_reply(req.message), engine="rules")
 
 
 @router.post("/ocr")
 async def ocr(file: UploadFile = File(...)):
     """OCR 识别截图：接入视觉大模型；未启用时返回规则占位结果"""
-    data = await file.read()
+    if file.content_type not in {"image/png", "image/jpeg", "image/webp"}:
+        raise HTTPException(415, "Only PNG, JPEG and WebP images are supported")
+    data = await file.read(5 * 1024 * 1024 + 1)
+    if len(data) > 5 * 1024 * 1024:
+        raise HTTPException(413, "Image exceeds 5 MiB")
     try:
-        text = await llm.ocr_with_llm(data, file.filename or "screenshot.png")
-        engine = "llm"
-    except Exception:
-        engine = "rules"
-        text = (
-            f"[规则引擎演示识别] 已从「{file.filename}」中识别出 2 项任务信息：\n"
-            "1. 数据结构作业提交 (高优先级)\n2. 下周组会：项目进度汇报 (中优先级)"
-        )
-    tasks = []
-    if engine == "rules":
-        tasks = [
-            {"title": "数据结构作业提交", "category": "作业", "priority": "高"},
-            {"title": "下周组会：项目进度汇报", "category": "项目", "priority": "中"},
-        ]
-    return {"recognizedText": text, "tasks": tasks, "engine": engine}
+        text = await llm.ocr_with_llm(data, file.content_type)
+    except Exception as exc:
+        logger.warning("ocr unavailable: %s", type(exc).__name__)
+        raise HTTPException(503, "OCR unavailable; no tasks were extracted")
+    return {"recognizedText": text, "tasks": [], "engine": "llm"}

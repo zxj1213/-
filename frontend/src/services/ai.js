@@ -136,7 +136,7 @@ export function simulateMaterialParse(fileName, fileSize) {
   }
   return {
     kps,
-    summary: `已解析文件「${fileName}」（${(fileSize / 1024).toFixed(1)} KB），提取出 ${kps.length} 个知识点，请确认后进入计划流程`,
+    summary: `[演示示例，未读取内容] 文件「${fileName}」（${(fileSize / 1024).toFixed(1)} KB），提取出 ${kps.length} 个知识点，请确认后进入计划流程`,
     chunks: kps.map(k => ({ text: `${k.name} 相关章节内容切片`, source: k.source }))
   }
 }
@@ -188,7 +188,7 @@ export function generateRuleReply(input, ctx) {
   }
 
   if (text.includes('机器学习') || text.includes('machine learning')) {
-    return '关于机器学习课程：\n\n📊 你的知识点掌握情况：\n• 线性回归 80% ✓ 较好\n• 决策树 55% ⚠ 低于60%阈值\n• 神经网络 40% ⚠ 需要加强\n\n💡 决策树与神经网络练习正确率偏低，我已自动减少了新知识学习，为你安排了针对性练习。建议今天先完成「决策树」的40分钟专项训练。'
+    return '关于机器学习课程：\n\n📊 你的知识点掌握情况：\n• 线性回归 80% ✓ 较好\n• 决策树 55% ⚠ 低于60%阈值\n• 神经网络 40% ⚠ 需要加强\n\n💡 决策树与神经网络练习正确率偏低，我建议减少新知识学习并安排针对性练习。建议今天先完成「决策树」的40分钟专项训练。'
   }
 
   if (text.includes('二叉树')) {

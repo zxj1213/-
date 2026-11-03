@@ -8,7 +8,7 @@
  * - 掌握度 ≥ 85%       → 判定已掌握，可进入下一新章节
  * - 每日总时长硬约束   → 超出预算自动顺延/拆分，并解释调整
  * - 用户锁定任务       → 重新规划时保留，不覆盖用户手工安排
- * 后端 FastAPI 中有一份相同逻辑的 Python 实现 (backend/app/services/adaptive.py)
+ * 本地演示排程实现；后端 Python 为独立的基础接口，不应混用计划数据。
  */
 
 export const WEAK_THRESHOLD = 60 // 薄弱阈值：低于该值触发针对性练习
@@ -16,7 +16,7 @@ export const MASTERED_THRESHOLD = 85 // 掌握阈值：达到该值视为已掌�
 
 /** 记录一次真实练习结果，更新知识点掌握度(加权平滑) */
 export function recordPractice(kpState, correct, total, minutes = 30) {
-  if (!kpState || total <= 0) return kpState
+  if (!kpState || !Number.isFinite(correct) || !Number.isFinite(total) || correct < 0 || correct > total || total <= 0) return kpState
   const rate = Math.round((correct / total) * 100)
   const newMastery = Math.round((kpState.mastery ?? 50) * 0.5 + rate * 0.5)
   return {
@@ -25,7 +25,7 @@ export function recordPractice(kpState, correct, total, minutes = 30) {
     assessed: true,
     records: [
       ...(kpState.records || []),
-      { date: new Date().toISOString().slice(0, 10), correct, total, minutes, rate }
+      { date: new Date().toLocaleDateString('sv-SE'), correct, total, minutes, rate }
     ]
   }
 }
@@ -79,7 +79,7 @@ export function generateRecommendations({ kpMastery, courses, exams, tasks }) {
       recs.push({
         icon: '📉',
         title: `「${kp.name}」掌握度 ${kp.mastery}%`,
-        desc: `${course.name} · ${lastRate}，已自动减少新知识学习，安排 40 分钟针对性练习`,
+        desc: `${course.name} · ${lastRate}，建议减少新知识学习，进行针对性练习`,
         reason: '薄弱知识点',
         courseId: course.id,
         kp: kp.name,
@@ -151,15 +151,16 @@ export function describePlanDay(plan) {
  * 返回 { plans, explanation, estimated, avg, changes, overBudgetDays }
  */
 export function replanByResults({ exam, course, kpMastery, daysLeft, targetScore, prevPlans }) {
-  const kps = listKps(kpMastery[course.id])
+  const kps = listKps(kpMastery[course?.id || exam.courseId])
   const weak = kps.filter(k => k.mastery != null && k.mastery < WEAK_THRESHOLD)
-  const avg = avgMastery(kpMastery[course.id])
-  const budget = exam.dailyMinutes || 90
+  const avg = avgMastery(kpMastery[course?.id || exam.courseId])
+  const budget = Math.max(1, Number(exam.dailyMinutes) || 90)
 
   const newPlans = []
   const changes = [] // 调整前后差异
   let overBudgetDays = 0
-  const totalDays = Math.max(daysLeft, 3)
+  const totalDays = Math.min(366, Math.max(0, Number(daysLeft) || 0))
+  const pending = []
   const today = new Date()
   const fmt = d =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -171,9 +172,10 @@ export function replanByResults({ exam, course, kpMastery, daysLeft, targetScore
     const isToday = i === 0
 
     // 用户锁定的计划日 → 原样保留(不覆盖用户手工安排)
-    const locked = (prevPlans || []).find(p => p.date === dateStr && p.locked)
+    const locked = (prevPlans || []).find(p => p.date === dateStr && (p.locked || p.completed || p.completedHours > 0))
     if (locked) {
-      newPlans.push({ ...locked, locked: true })
+      newPlans.push({ ...locked })
+      if (dayMinutes(locked) > budget) overBudgetDays++
       continue
     }
 
@@ -215,43 +217,26 @@ export function replanByResults({ exam, course, kpMastery, daysLeft, targetScore
       planMinutes += phase === 'practice' ? 60 : 90
     }
 
-    // 硬约束：超出每日预算 → 拆减练习量并顺延内容
-    if (planMinutes > budget) {
-      overBudgetDays++
-      const oldDesc = describePlanDay({ chapters, practiceTasks })
-      // 拆分：练习数量按预算缩减，剩余内容顺延到下一章
-      if (practiceTasks.length) {
-        const scale = Math.max(Math.floor(budget / practiceTasks[0].estimatedMinutes), 1)
-        practiceTasks[0].count = scale
-        practiceTasks[0].estimatedMinutes = budget
-        practiceTasks.push({
-          type: '顺延题组',
-          count: 0,
-          estimatedMinutes: 0,
-          completed: false,
-          postponed: `剩余 ${planMinutes - budget} 分钟顺延至次日`
-        })
-      } else if (chapters.length && !chapters[0].targeted) {
-        chapters[0].keyPoints = ['核心概念', '复杂度分析'] // 拆分章节
-        chapters.push({
-          name: `(顺延) ${chapters[0].name} 剩余内容`,
-          pageRange: chapters[0].pageRange,
-          keyPoints: ['算法实现'],
-          estimatedMinutes: planMinutes - budget,
-          completed: false,
-          postponed: true
-        })
+    // 未完成内容进入跨日队列，明细时长为唯一汇总来源。
+    pending.push(...chapters.map(item => ({ kind: 'chapter', ...item })),
+      ...practiceTasks.map(item => ({ kind: 'practice', ...item })))
+    chapters.length = 0
+    practiceTasks.length = 0
+    let capacity = budget
+    planMinutes = 0
+    while (pending.length && capacity > 0) {
+      const item = pending[0]
+      const minutes = Math.min(capacity, item.estimatedMinutes)
+      const portion = { ...item, estimatedMinutes: minutes }
+      if (item.kind === 'practice') {
+        portion.count = minutes === item.estimatedMinutes ? item.count : Math.floor(item.count * minutes / item.estimatedMinutes)
+        item.count -= portion.count
       }
-      planMinutes = budget
-      const newDesc = describePlanDay({ chapters, practiceTasks })
-      changes.push({
-        date: dateStr,
-        day: i + 1,
-        from: `${oldDesc} (${oldDesc.includes('+') ? planMinutes + (planMinutes - budget) : planMinutes}分钟)`,
-        to: `${newDesc}`,
-        deltaMin: 0,
-        reason: `超出每日预算 ${budget} 分钟，已拆减并顺延`
-      })
+      ;(item.kind === 'chapter' ? chapters : practiceTasks).push(portion)
+      item.estimatedMinutes -= minutes
+      capacity -= minutes
+      planMinutes += minutes
+      if (item.estimatedMinutes === 0) pending.shift()
     }
 
     newPlans.push({
@@ -263,7 +248,7 @@ export function replanByResults({ exam, course, kpMastery, daysLeft, targetScore
       totalDays,
       chapters,
       practiceTasks,
-      estimatedHours: Math.round((planMinutes / 60) * 10) / 10,
+      estimatedHours: planMinutes / 60,
       completed: false,
       completedHours: 0,
       selfEvaluation: 0,
@@ -274,7 +259,7 @@ export function replanByResults({ exam, course, kpMastery, daysLeft, targetScore
 
   // 与旧计划逐日对比(调整前后差异，驱动"计划真的变化了"的展示)
   for (let i = 0; i < Math.min(newPlans.length, (prevPlans || []).length); i++) {
-    const prev = prevPlans[i]
+    const prev = prevPlans.find(p => p.date === newPlans[i].date)
     const next = newPlans[i]
     if (!prev || prev.locked) continue
     const prevDesc = describePlanDay(prev)
@@ -311,15 +296,18 @@ export function replanByResults({ exam, course, kpMastery, daysLeft, targetScore
     lines.push(`平均掌握度 ${avg}%，已达到掌握水平，建议提前进入刷题阶段`)
   }
   if (overBudgetDays > 0) {
-    lines.push(`约束检查：${overBudgetDays} 天的计划超出每日预算 ${budget} 分钟，已自动拆减练习量并将剩余内容顺延`)
+    lines.push(`约束检查：${overBudgetDays} 天的计划超出每日预算 ${budget} 分钟，来自已锁定或已执行安排，请手动处理预算冲突`)
   } else {
     lines.push(`约束检查：全部计划满足每日 ${budget} 分钟预算`)
   }
+  const unscheduledMinutes = pending.reduce((sum, item) => sum + item.estimatedMinutes, 0)
+  if (unscheduledMinutes) lines.push(`考前容量不足：仍有 ${unscheduledMinutes} 分钟未排入，请调整预算或内容。`)
+  if (!totalDays) lines.push('考试已到期，未生成考后计划。')
   const estimated = Math.round(avg * 0.75 + 25)
   lines.push(`按当前趋势预估成绩 ${estimated}-${Math.min(estimated + 8, 100)} 分(目标 ${targetScore} 分)`)
   const explanation = lines.join('\n')
 
-  return { plans: newPlans, explanation, estimated, avg, changes, overBudgetDays }
+  return { plans: newPlans, explanation, estimated, avg, changes, overBudgetDays, unscheduledMinutes, unscheduled: pending }
 }
 
 function dayMinutes(plan) {

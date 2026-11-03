@@ -4,6 +4,8 @@
  * - 专注会话使用真实时间戳，刷新后可从上次状态恢复
  * - 计划调整保留历史快照，支持确认/恢复
  */
+import { ElMessage } from 'element-plus'
+import { setApiToken } from '../services/api'
 import { defineStore } from 'pinia'
 import { StorageConstants, todayStr, nowStr, addDays, generateId } from '../constants'
 import * as mock from '../mock/data'
@@ -51,6 +53,8 @@ function normalizeState(data) {
     activeSession: null
   }
   const state = { ...defaults, ...d }
+  if (state.authState) state.authState.privateLibraryEncrypted = false
+  if (state.settings) state.settings.autoSync = false
 
   // 任务补齐 actualMinutes
   state.tasks = (state.tasks || []).map(t => ({ actualMinutes: 0, ...t }))
@@ -184,6 +188,7 @@ export const useAppStore = defineStore('app', {
 
     /** 退出登录：持久化当前状态并回到登录页 */
     logout() {
+      setApiToken(null)
       this.save()
       localStorage.removeItem(StorageConstants.KEY_CURRENT_USER)
       Object.assign(this.$state, normalizeState(null))
@@ -204,6 +209,7 @@ export const useAppStore = defineStore('app', {
 
     /** 删除当前账号全部数据 */
     deleteData() {
+      setApiToken(null)
       const id = this.currentUserId
       if (id) {
         localStorage.removeItem(StorageConstants.stateKeyOf(id))
@@ -218,7 +224,7 @@ export const useAppStore = defineStore('app', {
     loadMockData() {
       this.userInfo = mock.getMockUserInfo()
       this.settings = mock.getMockAppSettings()
-      this.authState = { isAuthenticated: true, privateLibraryEncrypted: true }
+      this.authState = { isAuthenticated: true, privateLibraryEncrypted: false }
       this.widgetConfig = mock.getMockWidgetConfig()
       this.tasks = mock.getMockTasks()
       this.chatMessages = mock.getMockChatMessages()
@@ -264,7 +270,7 @@ export const useAppStore = defineStore('app', {
       if (!id) return
       try {
         localStorage.setItem(StorageConstants.stateKeyOf(id), JSON.stringify(this.$state))
-      } catch (e) { /* 存储满等异常忽略 */ }
+      } catch (e) { ElMessage.error('保存失败：浏览器存储不足或不可用，请立即导出备份。'); return false }
     },
 
     applyTheme() {
@@ -287,6 +293,10 @@ export const useAppStore = defineStore('app', {
       Object.assign(this.settings, patch)
       this.applyTheme()
       this.save()
+    },
+
+    verifyLocalPassword(password) {
+      return this._readUsers().find(u => u.id === this.currentUserId)?.hash === demoHash(password)
     },
 
     unlockPrivateLibrary() {
@@ -312,9 +322,11 @@ export const useAppStore = defineStore('app', {
       if (!task) return
       if (task.status === '已完成') {
         task.status = '待完成'
+        task.completedAt = null
         task.subTasks?.forEach(s => (s.completed = false))
       } else {
         task.status = '已完成'
+        task.completedAt = nowStr()
         task.subTasks?.forEach(s => (s.completed = true))
       }
       task.updatedAt = nowStr()
@@ -329,6 +341,7 @@ export const useAppStore = defineStore('app', {
         sub.completed = !sub.completed
         const done = task.subTasks.filter(s => s.completed).length
         task.status = done === 0 ? '待完成' : done === task.subTasks.length ? '已完成' : '进行中'
+        task.completedAt = task.status === '已完成' ? nowStr() : null
         task.updatedAt = nowStr()
         this.save()
       }
@@ -338,6 +351,7 @@ export const useAppStore = defineStore('app', {
       const task = this.tasks.find(t => t.id === taskId)
       if (task) {
         task.status = '已完成'
+        task.completedAt = nowStr()
         task.subTasks?.forEach(s => (s.completed = true))
         task.updatedAt = nowStr()
         this.save()
@@ -456,7 +470,9 @@ export const useAppStore = defineStore('app', {
       if (!s) return null
       const minutes = Math.max(1, Math.round(s.accumulatedSeconds / 60))
       const total = 20
-      const correct = Math.round((correctRate / 100) * total)
+      const hasResult = typeof correctRate === 'number' && Number.isFinite(correctRate) && correctRate >= 0 && correctRate <= 100
+      const correct = hasResult ? Math.round((correctRate / 100) * total) : null
+      if (hasResult && s.courseId && s.kp) this.recordPractice(s.courseId, s.kp, correct, total, minutes)
 
       this.addSessionLog({
         date: todayStr(),
@@ -468,7 +484,7 @@ export const useAppStore = defineStore('app', {
         taskCompleted: completed,
         correctRate,
         correct,
-        total,
+        total: hasResult ? total : null,
         kp: s.kp
       })
 
@@ -478,6 +494,7 @@ export const useAppStore = defineStore('app', {
         task.actualMinutes = (task.actualMinutes || 0) + minutes
         if (completed) {
           task.status = '已完成'
+        task.completedAt = nowStr()
           task.subTasks?.forEach(st => (st.completed = true))
         }
         task.updatedAt = nowStr()
@@ -502,7 +519,7 @@ export const useAppStore = defineStore('app', {
       if (patch.date) {
         const prog = this.studyProgress[examId]
         if (prog) {
-          prog.daysLeft = Math.max(Math.ceil((new Date(patch.date) - new Date()) / 86400000), 3)
+          prog.daysLeft = Math.max(Math.ceil((new Date(patch.date.slice(0, 10) + 'T00:00:00') - new Date(todayStr() + 'T00:00:00')) / 86400000), 0)
         }
       }
       this.save()
@@ -552,7 +569,7 @@ export const useAppStore = defineStore('app', {
       const today = plans.find(p => p.date === todayStr())
       if (today && !today.locked) {
         today.completed = completed
-        today.completedHours = actualHours || (completed ? today.estimatedHours : (today.estimatedHours || 1) * 0.6)
+        today.completedHours = actualHours ?? 0
         today.selfEvaluation = completed ? 80 : 50
       }
 
@@ -574,7 +591,7 @@ export const useAppStore = defineStore('app', {
     _replan(exam, payload) {
       const course = this.courses.find(c => c.id === exam.courseId)
       const daysLeft = Math.max(
-        Math.ceil((new Date(exam.date) - new Date()) / 86400000), 3)
+        Math.ceil((new Date(exam.date.slice(0, 10) + 'T00:00:00') - new Date(todayStr() + 'T00:00:00')) / 86400000), 0)
 
       // 调整前快照(仅保留最近一次，用于对比展示与回退)
       this.snapshotPlans(exam.id)
@@ -611,7 +628,7 @@ export const useAppStore = defineStore('app', {
         const doneCount = plans.filter(p => p.completed).length
         prog.daysLeft = daysLeft
         prog.daysCompleted = doneCount
-        prog.overallCompletion = Math.round((doneCount / plans.length) * 100)
+        prog.overallCompletion = plans.length ? Math.round((doneCount / plans.length) * 100) : 0
         prog.averageCorrectRate = result.avg
       }
       return result
@@ -645,13 +662,14 @@ export const useAppStore = defineStore('app', {
 
     generateTodayReview() {
       const date = todayStr()
-      const totalTasks = this.tasks.length
-      const doneTasks = this.tasks.filter(t => t.status === '已完成').length
+      const dailyTasks = this.tasks.filter(t => t.deadline?.slice(0, 10) === date || t.completedAt?.slice(0, 10) === date)
+      const totalTasks = dailyTasks.length
+      const doneTasks = dailyTasks.filter(t => t.status === '已完成' && t.completedAt?.slice(0, 10) === date).length
       const studyMinutes = this.sessionLogs
         .filter(l => l.date === date)
         .reduce((a, b) => a + b.minutes, 0)
       const studyHours = Math.round((studyMinutes / 60) * 10) / 10
-      const plannedHours = 5
+      const plannedHours = dailyTasks.reduce((sum, t) => sum + (t.estimatedDuration || 0), 0) / 60
       const efficiencyScore = Math.min(
         100, Math.round((studyHours / Math.max(plannedHours, 0.1)) * 70 +
           (totalTasks ? (doneTasks / totalTasks) * 30 : 30)))
@@ -665,7 +683,7 @@ export const useAppStore = defineStore('app', {
 
       const suggestions = []
       if (weakKps.length) {
-        suggestions.push(`检测到薄弱知识点 ${weakKps.join('、')}，明日已安排针对性练习，自动减少新知识学习`)
+        suggestions.push(`检测到薄弱知识点 ${weakKps.join('、')}，建议明日安排针对性练习，适当减少新知识学习`)
       }
       if (studyHours < plannedHours) {
         suggestions.push(`今日学习 ${studyHours}h，低于计划 ${plannedHours}h，建议明天优先补上进度`)
@@ -686,7 +704,7 @@ export const useAppStore = defineStore('app', {
         plannedStudyHours: plannedHours,
         plannedExerciseMinutes: 30,
         deviationExplanation: studyHours < plannedHours
-          ? `今日实际学习 ${studyHours}h，低于计划 ${plannedHours}h。主要原因是任务安排与真实学习效率存在偏差，部分章节练习耗时超出预期。`
+          ? `今日实际学习 ${studyHours}h，低于计划 ${plannedHours}h。具体原因需结合学习记录确认。`
           : `今日完成学习 ${studyHours}h，与计划基本一致。任务完成情况良好，学习节奏稳定。`,
         efficiencyScore,
         suggestions,

@@ -7,7 +7,9 @@
     pip install -r requirements.txt
     uvicorn main:app --reload --port 8000
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+import secrets
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
@@ -25,13 +27,22 @@ def create_app() -> FastAPI:
     # 跨域：允许前端 Vite 开发服务器访问
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=settings.CORS_ORIGINS,
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
     # 建表(生产环境建议改用 Alembic 迁移)
     Base.metadata.create_all(bind=engine)
+
+    @app.middleware("http")
+    async def require_access(request: Request, call_next):
+        # 未配置访问凭据时仅开放健康检查，避免意外发布无保护的数据库和付费接口。
+        if request.url.path.startswith("/api/") and request.url.path != "/api/health" and request.method != "OPTIONS":
+            token = request.headers.get("Authorization", "").removeprefix("Bearer ")
+            if not settings.API_TOKEN or not secrets.compare_digest(token, settings.API_TOKEN):
+                return JSONResponse(status_code=401, content={"detail": "API access token required"})
+        return await call_next(request)
 
     app.include_router(ai.router)
     app.include_router(tasks.router)

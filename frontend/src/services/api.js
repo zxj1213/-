@@ -11,9 +11,14 @@ import { generateRuleReply, simulateOcr } from './ai'
 
 const http = axios.create({
   baseURL: '/api',
-  timeout: 8000
+  timeout: 35000
 })
 
+// 访问令牌仅驻留当前标签页；不要将其写入构建变量或公开静态资源。
+export function setApiToken(token) {
+  if (token) http.defaults.headers.common.Authorization = `Bearer ${token}`
+  else delete http.defaults.headers.common.Authorization
+}
 let backendAvailable = false
 
 /** 探测后端是否可用 */
@@ -36,11 +41,11 @@ export async function chatWithAI(message, ctx, history = []) {
   try {
     const res = await http.post('/ai/chat', {
       message,
-      history: history.slice(-8).map(m => ({ role: m.role, content: m.content }))
+      history: history.filter((m, i) => !(i === history.length - 1 && m.role === 'user' && m.content === message)).slice(-8).map(m => ({ role: m.role, content: m.content }))
     })
     if (res.data && res.data.reply) {
       backendAvailable = true
-      return { reply: res.data.reply, engine: 'llm' }
+      return { reply: res.data.reply, engine: res.data.engine === 'llm' ? 'llm' : 'rules' }
     }
     throw new Error('empty reply')
   } catch (e) {
@@ -60,6 +65,6 @@ export async function ocrRecognize(file, fileName) {
   } catch (e) {
     backendAvailable = false
     // 演示模式：模拟识别结果
-    return simulateOcr(fileName)
+    return { recognizedText: '识别服务不可用，未提取任务。请重试或手动录入。', tasks: [], engine: 'unavailable' }
   }
 }

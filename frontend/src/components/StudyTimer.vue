@@ -201,14 +201,14 @@ const stateText = computed(() => {
 })
 
 // ---------- 真实时间戳计时(A4/C3)：基于 Date.now 计算，暂停段不计入 ----------
-function tick() {
+function tick(finishWhenDue = true) {
   if (!session.value || session.value.status !== 'running') return
   const elapsed = Math.floor((Date.now() - session.value.lastTick) / 1000)
   if (elapsed > 0) {
     accumulated.value = session.value.accumulatedSeconds + elapsed
     if (accumulated.value >= targetMinutes.value * 60) {
       accumulated.value = targetMinutes.value * 60
-      openFinish()
+      if (finishWhenDue) openFinish()
       return
     }
   }
@@ -221,7 +221,7 @@ function start() {
   }
   // 存在会话但任务不一致：先结算旧会话(真实时长保留)，再开新会话
   if (session.value && session.value.taskId !== boundTaskId.value) {
-    const minutes = store.endSession({ completed: false, correctRate: 0 })
+    const minutes = store.endSession({ completed: false, correctRate: null })
     if (minutes) ElMessage.info(`已结算上一任务「${session.value?.taskTitle?.slice(0, 10)}」${minutes} 分钟`)
     accumulated.value = 0
   }
@@ -245,7 +245,7 @@ function start() {
 
 function pause() {
   if (!session.value) return
-  tick() // 先结算到当前
+  tick(false) // 仅计算秒数，避免再次进入结束流程
   store.pauseSession(accumulated.value)
   clearInterval(interval)
   interval = null
@@ -285,7 +285,7 @@ function submitFinish() {
   const msg = mastery == null
     ? `已记录 ${minutes} 分钟专注，任务用时已归属「${boundTask.value?.title?.slice(0, 12)}」`
     : mastery < WEAK_THRESHOLD
-      ? `「${kp}」掌握度 ${mastery}%，低于阈值，已自动安排针对性练习`
+      ? `「${kp}」掌握度 ${mastery}%，低于阈值，建议进行针对性练习`
       : `「${kp}」掌握度更新为 ${mastery}%，继续加油！`
   ElMessage.success(msg)
   resetLocal()
@@ -295,7 +295,7 @@ function discardFinish() {
   showFinish.value = false
   // 未提交结果也保留专注时长(真实数据不丢失)，但不更新掌握度
   if (session.value) {
-    const minutes = store.endSession({ completed: false, correctRate: 0 })
+    const minutes = store.endSession({ completed: false, correctRate: null })
     if (minutes) ElMessage.info(`已保留 ${minutes} 分钟专注记录`)
   }
   resetLocal()
@@ -326,7 +326,7 @@ function onTaskChange(newId) {
   }).then(() => {
     // 结束并切换：结算当前会话(计入真实时长)
     pause()
-    store.endSession({ completed: false, correctRate: 0 })
+    store.endSession({ completed: false, correctRate: null })
     boundTaskId.value = pendingSwitchTaskId
     pendingSwitchTaskId = null
     resetLocal()

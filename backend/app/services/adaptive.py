@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 自适应学习引擎(核心创新) - Python 版
-与前端 frontend/src/services/adaptive.js 逻辑一致。
+后端基础排程接口；尚不具备前端的预算队列及锁定计划语义，不用于替换前端计划。
 
 核心理念(图2)：根据真实学习结果动态改变决策，
 而不是仅仅生成一张漂亮的计划表。
@@ -21,7 +21,7 @@ MASTERED_THRESHOLD = 85
 
 def record_practice(mastery: int, correct: int, total: int) -> int:
     """加权平滑更新掌握度：新掌握度 = 旧掌握度*0.5 + 正确率*0.5"""
-    if total <= 0:
+    if total <= 0 or correct < 0 or correct > total:
         return mastery
     rate = round(correct / total * 100)
     return round(mastery * 0.5 + rate * 0.5)
@@ -52,7 +52,7 @@ def replan(
     today = today or datetime.now()
     weak = weak_points(kps)
     avg = avg_mastery(kps)
-    days_left = max(days_left, 3)
+    days_left = min(366, max(days_left, 0))
 
     plans = []
     for i in range(days_left):

@@ -354,6 +354,7 @@ async function onUploadFile(e) {
     await new Promise(r => setTimeout(r, 700))
     try {
       const result = simulateMaterialParse(f.name, f.size)
+      ElMessage.warning('当前为演示解析：知识点来自文件名示例，未读取文件内容。')
       allKps.push(...result.kps)
       const ext = f.name.split('.').pop().toLowerCase()
       const typeMap = { pdf: 'PDF', ppt: 'PPT', pptx: 'PPT', doc: '笔记', docx: '笔记', txt: '笔记', md: '笔记' }

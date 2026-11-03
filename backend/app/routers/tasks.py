@@ -2,7 +2,7 @@
 """任务路由：增删改查 + AI 解析创建"""
 import re
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -74,11 +74,12 @@ def ai_parse(req: TaskCreate):
 
 @router.post("")
 def create_task(req: TaskCreate, db: Session = Depends(get_db)):
-    parsed = _parse(req.title or req.description)
-    parsed.update({"id": uuid.uuid4().hex, "title": req.title or parsed["title"]})
+    parsed = req.model_dump()
+    parsed.update({"id": uuid.uuid4().hex})
     task = Task(**parsed)
     db.add(task)
     db.commit()
+    db.refresh(task)
     return task
 
 
