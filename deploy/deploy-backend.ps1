@@ -20,40 +20,47 @@ $target = "/var/www/studyflow"
 Write-Host "[1/4] 打包 backend..." -ForegroundColor Cyan
 $tarFile = Join-Path $env:TEMP "studyflow-backend.tar.gz"
 Push-Location $backend
-tar -czf $tarFile --exclude=.env --exclude=__pycache__ --exclude=*.db .
+tar -czf $tarFile --exclude=venv --exclude=.venv --exclude=.env --exclude=__pycache__ --exclude=*.db .
+if ($LASTEXITCODE -ne 0) { throw "Deployment command failed with exit code $LASTEXITCODE" }
 Pop-Location
 
 # 2. 上传
 Write-Host "[2/4] 上传到 $User@$ServerIP ..." -ForegroundColor Cyan
 scp -i $Key -o StrictHostKeyChecking=accept-new $tarFile "$User@$ServerIP":/tmp/studyflow-backend.tar.gz
+if ($LASTEXITCODE -ne 0) { throw "Deployment command failed with exit code $LASTEXITCODE" }
 
 # 3. 安装依赖 + 初始化服务
 Write-Host "[3/4] 服务器端解压并安装依赖..." -ForegroundColor Cyan
 $remote = @"
 set -e
+id studyflow >/dev/null 2>&1 || useradd --system --home $target --shell /usr/sbin/nologin studyflow
 mkdir -p $target/backend
 tar -xzf /tmp/studyflow-backend.tar.gz -C $target/backend
 rm -f /tmp/studyflow-backend.tar.gz
 cd $target/backend
-if ! command -v python3 >/dev/null; then
+if ! command -v python3 >/dev/null || ! python3 -m venv --help >/dev/null 2>&1; then
   apt-get update -y && apt-get install -y python3 python3-venv python3-pip
 fi
 if [ ! -d venv ]; then
   python3 -m venv venv
 fi
-./venv/bin/pip install -r requirements.txt -q -i https://pypi.tuna.tsinghua.edu.cn/simple
+./venv/bin/pip install -r requirements-lock.txt -q -i https://pypi.tuna.tsinghua.edu.cn/simple
 if [ ! -f .env ]; then
   cp .env.example .env
 fi
+chown -R studyflow:studyflow $target/backend
+chmod 600 .env
 "@
 ssh -i $Key -o StrictHostKeyChecking=accept-new "$User@$ServerIP" $remote
+if ($LASTEXITCODE -ne 0) { throw "Deployment command failed with exit code $LASTEXITCODE" }
 
 # 4. 注册 systemd 服务
 Write-Host "[4/4] 注册 systemd 服务..." -ForegroundColor Cyan
 $serviceContent = Get-Content (Join-Path $PSScriptRoot "studyflow.service") -Raw
 $b64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($serviceContent))
-$remote2 = "echo $b64 | base64 -d > /etc/systemd/system/studyflow.service && systemctl daemon-reload && systemctl enable --now studyflow && systemctl status studyflow --no-pager | head -5"
+$remote2 = "echo $b64 | base64 -d > /etc/systemd/system/studyflow.service && systemctl daemon-reload && systemctl enable studyflow && systemctl restart studyflow && curl --fail --silent http://127.0.0.1:8000/api/health && systemctl status studyflow --no-pager | head -5"
 ssh -i $Key -o StrictHostKeyChecking=accept-new "$User@$ServerIP" $remote2
+if ($LASTEXITCODE -ne 0) { throw "Deployment command failed with exit code $LASTEXITCODE" }
 
 # 5. 可选: Nginx 配置
 if ($SetupNginx) {
@@ -62,6 +69,7 @@ if ($SetupNginx) {
     $b64n = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($nginxContent))
     $remote3 = "echo $b64n | base64 -d > /etc/nginx/conf.d/studyflow.conf && nginx -t && systemctl reload nginx"
     ssh -i $Key -o StrictHostKeyChecking=accept-new "$User@$ServerIP" $remote3
+if ($LASTEXITCODE -ne 0) { throw "Deployment command failed with exit code $LASTEXITCODE" }
 }
 
 Write-Host ""

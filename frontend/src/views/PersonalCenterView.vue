@@ -51,11 +51,11 @@
         </div>
       </div>
 
-      <!-- 全场景续接 -->
+      <!-- 设备展示（演示） -->
       <div class="card">
         <div class="card-title">
-          <span class="t">全场景续接</span>
-          <span class="more">{{ devices.filter(d => d.isConnected).length }}台在线</span>
+          <span class="t">设备展示（演示）</span>
+          <span class="more">{{ devices.filter(d => d.isConnected).length }}台示例设备</span>
         </div>
         <div class="devices">
           <div v-for="device in devices" :key="device.deviceId" class="device">
@@ -65,13 +65,13 @@
             <div class="device-name">{{ device.deviceName }}</div>
             <div class="device-status">
               <span class="dot" :class="{ on: device.isConnected }"></span>
-              {{ device.isConnected ? '已连接' : '未连接' }}
+              {{ device.isConnected ? '示例连接状态' : '未连接' }}
             </div>
             <div class="device-sync">{{ device.lastSyncTime }}</div>
           </div>
         </div>
         <div class="device-note">
-          ℹ 手机→Pad→PC 无缝续接：数据层基于同账号同步，刷新页面即可恢复完整课表、待办与图谱数据
+          ℹ 当前为本地演示，数据仅保存在此浏览器，尚未接入跨设备同步。
         </div>
       </div>
     </div>
@@ -87,6 +87,7 @@
         ，不同账号之间互不可见。生产环境由服务端完成权限隔离。
       </div>
       <div class="ac-actions">
+        <el-button round plain @click="configureBackend">连接受保护的 AI 服务</el-button>
         <el-button round plain type="primary" @click="doExport">📦 导出数据</el-button>
         <el-button round plain type="danger" @click="doDelete">🗑 删除全部数据</el-button>
         <el-button round plain type="warning" @click="doLogout">🚪 退出登录</el-button>
@@ -136,10 +137,10 @@
         <div class="setting-item">
           <span class="si-emoji">☁</span>
           <div class="si-body">
-            <div class="si-title">跨设备自动同步</div>
-            <div class="si-sub">{{ store.settings.autoSync ? '已开启' : '已关闭' }}</div>
+            <div class="si-title">跨设备同步（尚未接入）</div>
+            <div class="si-sub">当前仅本地保存</div>
           </div>
-          <el-switch v-model="store.settings.autoSync" @change="store.save()" />
+          <el-switch disabled :model-value="false" @change="store.save()" />
         </div>
         <el-divider style="margin: 0" />
         <div class="setting-item">
@@ -155,15 +156,15 @@
       <!-- 加密私有库 -->
       <div class="card">
         <div class="card-title">
-          <span class="t">🔒 加密私有库</span>
+          <span class="t">🔒 本地资料库（演示）</span>
           <span class="tag" :style="authStyle">{{ store.authState.isAuthenticated ? '已认证' : '未认证' }}</span>
         </div>
         <div class="lib-desc">
-          你的学业画像、成绩数据、AI记忆和个人笔记使用加密存储，仅认证后可解密访问。
+          数据以未加密形式保存在本机浏览器。此处密码校验仅用于演示界面解锁，不提供安全隔离。
         </div>
         <div class="lib-actions" v-if="!libraryUnlocked">
-          <el-button type="warning" round @click="faceAuth">
-            <el-icon><View /></el-icon>&nbsp;面容认证解锁
+          <el-button type="warning" round disabled>
+            <el-icon><View /></el-icon>&nbsp;面容认证（尚未接入）
           </el-button>
           <el-button round plain type="primary" @click="showPassword = true">
             🔒&nbsp;密码认证
@@ -215,6 +216,7 @@
 <script setup>
 import { ref, computed, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { setApiToken } from '../services/api'
 import { useAppStore } from '../store'
 import { todayStr, daysBetween } from '../constants'
 
@@ -279,18 +281,17 @@ function cycleFontSize() {
   ElMessage.success(`字体: ${fontSizeLabel.value}`)
 }
 
-function faceAuth() {
-  ElMessage.info('正在进行面容认证...')
-  setTimeout(() => {
-    libraryUnlocked.value = true
-    store.unlockPrivateLibrary()
-    ElMessage.success('认证成功！私有库已解锁')
-  }, 1500)
+async function configureBackend() {
+  try {
+    const { value } = await ElMessageBox.prompt('输入服务管理员配置的访问令牌，仅此标签页使用。', '连接 AI 服务', { inputType: 'password' })
+    setApiToken(value)
+    ElMessage.info('访问令牌已设置，下一次 AI 请求将使用此凭据。')
+  } catch { /* 取消 */ }
 }
 
 function passwordAuth() {
-  if (passwordInput.value.length < 4) {
-    ElMessage.warning('请输入至少4位密码')
+  if (!store.verifyLocalPassword(passwordInput.value)) {
+    ElMessage.warning('账号密码错误')
     return
   }
   libraryUnlocked.value = true
@@ -348,11 +349,11 @@ function doLogout() {
 .page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--section-gap);
 }
 
 .account-card {
-  margin-bottom: 16px;
+  margin-bottom: 0;
 }
 
 .ac-info {
@@ -389,6 +390,8 @@ function doLogout() {
 
 .uh-body {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
   cursor: pointer;
 }
 
@@ -590,6 +593,7 @@ function doLogout() {
 
 .lib-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   margin-top: 14px;
@@ -643,5 +647,11 @@ function doLogout() {
   font-size: 13px;
   color: var(--text-secondary);
   flex-shrink: 0;
+}
+@media (max-width: 600px) {
+  .user-head { flex-wrap: wrap; }
+  .user-head .uh-body { flex: 1 1 calc(100% - 80px); }
+  .user-head > .el-button { margin-left: auto; }
+  .widget { padding: 16px 10px; }
 }
 </style>

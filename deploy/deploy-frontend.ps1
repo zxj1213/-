@@ -24,6 +24,7 @@ if ($Rebuild -or -not (Test-Path (Join-Path $dist "index.html"))) {
     Write-Host "[1/4] 构建前端..." -ForegroundColor Cyan
     Push-Location $frontend
     npm run build
+if ($LASTEXITCODE -ne 0) { throw "Deployment command failed with exit code $LASTEXITCODE" }
     Pop-Location
 } else {
     Write-Host "[1/4] dist/ 已存在，跳过构建(加 -Rebuild 强制重建)" -ForegroundColor Cyan
@@ -34,16 +35,20 @@ Write-Host "[2/4] 打包 dist..." -ForegroundColor Cyan
 $tarFile = Join-Path $env:TEMP "studyflow-dist.tar.gz"
 Push-Location $dist
 tar -czf $tarFile .
+if ($LASTEXITCODE -ne 0) { throw "Deployment command failed with exit code $LASTEXITCODE" }
 Pop-Location
 
 # 3. 上传
 Write-Host "[3/4] 上传到 $User@$ServerIP ..." -ForegroundColor Cyan
 ssh -i $Key -o StrictHostKeyChecking=accept-new "$User@$ServerIP" "mkdir -p $target"
+if ($LASTEXITCODE -ne 0) { throw "Deployment command failed with exit code $LASTEXITCODE" }
 scp -i $Key -o StrictHostKeyChecking=accept-new $tarFile "$User@$ServerIP":/tmp/studyflow-dist.tar.gz
+if ($LASTEXITCODE -ne 0) { throw "Deployment command failed with exit code $LASTEXITCODE" }
 
 # 4. 解压 + 初始化 nginx
 Write-Host "[4/4] 服务器端解压并配置 nginx..." -ForegroundColor Cyan
 $remote = @"
+set -e
 mkdir -p $target/dist
 tar -xzf /tmp/studyflow-dist.tar.gz -C $target/dist
 rm -f /tmp/studyflow-dist.tar.gz
@@ -52,6 +57,7 @@ if ! command -v nginx >/dev/null; then
 fi
 "@
 ssh -i $Key -o StrictHostKeyChecking=accept-new "$User@$ServerIP" $remote
+if ($LASTEXITCODE -ne 0) { throw "Deployment command failed with exit code $LASTEXITCODE" }
 
 Write-Host ""
 Write-Host "✅ 前端已部署! 浏览器访问 http://$ServerIP 即可" -ForegroundColor Green

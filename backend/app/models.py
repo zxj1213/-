@@ -95,3 +95,10 @@ class DailyReview(Base):
     deviation_explanation = Column(Text, default="")
     suggestions = Column(Text, default="[]")
     user_confirmed = Column(Boolean, default=False)
+
+
+class CheckInReceipt(Base):
+    __tablename__ = "check_in_receipts"
+    id = Column(String(64), primary_key=True)
+    request_hash = Column(String(64), nullable=False)
+    response = Column(Text, nullable=False)

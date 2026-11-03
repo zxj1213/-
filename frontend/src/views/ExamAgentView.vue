@@ -541,7 +541,7 @@ function onUploadFile(e) {
 .page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--section-gap);
 }
 
 .exam-selector {
@@ -711,7 +711,7 @@ function onUploadFile(e) {
 .right-col {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--grid-gap);
 }
 
 .ov-top {

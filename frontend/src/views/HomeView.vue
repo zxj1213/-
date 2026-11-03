@@ -4,7 +4,7 @@
     <div class="hero fade-up">
       <div class="hero-left">
         <div class="hello">Hello，{{ store.userInfo?.name || '同学' }} 👋</div>
-        <div class="sub">{{ formatDateCN(today) }} {{ weekday }}</div>
+        <div class="sub">{{ formatDateCN(today) }}</div>
         <div class="must-do" v-if="topTask">
           <span class="must-label">🎯 今日必做</span>
           <span class="must-title">{{ topTask.title }}</span>
@@ -49,8 +49,8 @@
       <!-- AI 学习推荐(自适应引擎实时生成，折叠展示) -->
       <div class="card rec-card fade-up">
         <div class="card-title">
-          <span class="t">🤖 AI Study Recommendations</span>
-          <span class="more" @click="$router.push('/exam')">自适应引擎动态生成 ›</span>
+          <span class="t">AI 学习建议</span>
+          <span class="more" @click="$router.push('/exam')">查看学习计划 ›</span>
         </div>
         <div class="rec-grid">
           <div v-for="rec in shownRecs" :key="rec.title" class="rec-item">
@@ -75,6 +75,7 @@
     </div>
 
     <!-- 今日待办 + 考试倒计时(合并卡片，去除重复) -->
+    <section class="home-section">
     <div class="section-title">
       今日待办
       <span class="more" @click="$router.push('/tasks')">全部任务 ›</span>
@@ -103,7 +104,10 @@
       <el-empty v-if="!store.tasks.length" description="暂无任务" :image-size="60" />
     </div>
 
+    </section>
+
     <!-- 课程掌握度(图1: Machine Learning / Data Structures) -->
+    <section class="home-section">
     <div class="section-title">
       课程掌握度
       <span class="more" @click="$router.push('/plan')">课程管理 ›</span>
@@ -133,6 +137,8 @@
         </el-button>
       </div>
     </div>
+
+    </section>
 
     <!-- 评委演示模式(B8) -->
     <el-dialog v-model="showDemo" title="🎬 评委演示模式 · 自适应学习闭环" width="88%" align-center>
@@ -264,22 +270,26 @@ function startFocus(course, task = null) {
 </script>
 
 <style scoped>
+.home-page { display: flex; flex-direction: column; gap: var(--section-gap); }
+.home-section { min-width: 0; }
 .hero {
-  background: linear-gradient(120deg, #1E88E5, #26A69A);
+  background: var(--hero-bg);
+  border: 1px solid var(--divider);
   border-radius: 16px;
-  padding: 22px 26px;
-  color: #fff;
+  padding: 32px;
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  margin-bottom: 18px;
+  margin-bottom: 0;
   flex-wrap: wrap;
 }
 
 .hero-left {
   flex: 1;
-  min-width: 320px;
+  min-width: 0;
+  flex-basis: 480px;
 }
 
 .hello {
@@ -298,7 +308,8 @@ function startFocus(course, task = null) {
   align-items: center;
   gap: 10px;
   margin-top: 14px;
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--bg-card);
+  border: 1px solid var(--divider);
   border-radius: 10px;
   padding: 10px 14px;
   flex-wrap: wrap;
@@ -307,7 +318,8 @@ function startFocus(course, task = null) {
 .must-label {
   font-size: 12px;
   font-weight: bold;
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--accent-soft);
+  color: var(--primary);
   padding: 3px 8px;
   border-radius: 6px;
   white-space: nowrap;
@@ -335,9 +347,9 @@ function startFocus(course, task = null) {
 }
 
 .cta-ghost {
-  background: rgba(255, 255, 255, 0.14) !important;
-  border-color: transparent !important;
-  color: #fff !important;
+  background: var(--bg-card) !important;
+  border-color: var(--divider) !important;
+  color: var(--text-secondary) !important;
 }
 
 .hero-stats {
@@ -347,7 +359,8 @@ function startFocus(course, task = null) {
 }
 
 .hs-item {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--bg-card);
+  border: 1px solid var(--divider);
   border-radius: 12px;
   padding: 12px 18px;
   text-align: center;
@@ -357,7 +370,7 @@ function startFocus(course, task = null) {
 }
 
 .hs-item:hover {
-  background: rgba(255, 255, 255, 0.28);
+  background: var(--accent-soft);
 }
 
 .hs-v {
@@ -380,15 +393,17 @@ function startFocus(course, task = null) {
 .rec-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 4px 14px;
+  gap: 14px;
 }
 
 .rec-item {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 10px 8px;
-  border-bottom: 1px solid var(--divider);
+  padding: 18px;
+  background: var(--bg-primary);
+  border: 1px solid var(--divider);
+  border-radius: 12px;
 }
 
 .rec-icon {
@@ -411,10 +426,10 @@ function startFocus(course, task = null) {
 }
 
 .rec-desc {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-secondary);
-  margin-top: 3px;
-  line-height: 1.5;
+  margin-top: 8px;
+  line-height: 1.8;
 }
 
 .rec-arrow {
@@ -435,8 +450,8 @@ function startFocus(course, task = null) {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 8px;
-  padding-bottom: 10px;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
   border-bottom: 1px dashed var(--divider);
 }
 
@@ -456,13 +471,14 @@ function startFocus(course, task = null) {
 .course-card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 12px;
 }
 
 .cc-top {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 12px;
 }
 
 .cc-name {
@@ -514,5 +530,19 @@ function startFocus(course, task = null) {
   .rec-grid {
     grid-template-columns: 1fr;
   }
+}
+.hero-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; gap: 16px; }
+.hs-item { text-align: left; padding: 18px 22px; min-width: 0; }
+.hs-v { font-size: 28px; color: var(--primary); font-variant-numeric: tabular-nums; }
+.hs-k { color: var(--text-secondary); font-size: 12px; }
+.rec-more { padding-top: 18px; }
+@media (max-width: 600px) {
+  .hero { padding: 24px 20px; gap: 22px; }
+  .hello { font-size: 23px; }
+  .hero-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .hs-item { padding: 16px; }
+  .hero-actions { gap: 10px; }
+  .hero-actions .el-button { font-size: 12px; padding: 10px 14px; }
+  .rec-grid { grid-template-columns: 1fr; }
 }
 </style>

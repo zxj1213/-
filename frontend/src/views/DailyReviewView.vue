@@ -139,7 +139,7 @@ function onRefresh() {
 .page {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--section-gap);
 }
 
 .head-row {

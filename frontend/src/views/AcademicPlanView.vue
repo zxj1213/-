@@ -354,6 +354,7 @@ async function onUploadFile(e) {
     await new Promise(r => setTimeout(r, 700))
     try {
       const result = simulateMaterialParse(f.name, f.size)
+      ElMessage.warning('当前为演示解析：知识点来自文件名示例，未读取文件内容。')
       allKps.push(...result.kps)
       const ext = f.name.split('.').pop().toLowerCase()
       const typeMap = { pdf: 'PDF', ppt: 'PPT', pptx: 'PPT', doc: '笔记', docx: '笔记', txt: '笔记', md: '笔记' }
@@ -408,13 +409,13 @@ function confirmKps() {
 .page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--section-gap);
 }
 
 /* 快捷入口 */
 .quick-entries {
   display: flex;
-  padding: 6px 10px;
+  padding: 12px;
   gap: 4px;
 }
 
@@ -424,7 +425,7 @@ function confirmKps() {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px 6px;
+  padding: 12px 10px;
   border-radius: 10px;
   cursor: pointer;
   transition: background 0.2s;
@@ -474,11 +475,11 @@ function confirmKps() {
 .right-col {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--grid-gap);
 }
 
 .path-card {
-  margin-top: 16px;
+  margin-top: var(--section-gap);
 }
 
 .mem-preview {
@@ -933,5 +934,12 @@ function confirmKps() {
   color: var(--primary);
   cursor: pointer;
   padding: 6px 0;
+}
+.quick-entries { overflow-x: auto; }
+.quick-entry { flex-shrink: 0; white-space: nowrap; }
+@media (max-width: 600px) {
+  .quick-entry { flex: 0 0 auto; }
+  .path-row { overflow-x: auto; justify-content: flex-start; gap: 10px; }
+  .path-row :deep(.path-node) { flex-shrink: 0; min-width: 72px; }
 }
 </style>

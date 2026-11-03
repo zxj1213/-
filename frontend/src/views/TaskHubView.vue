@@ -373,7 +373,7 @@ function onFocusTask(task) {
 .page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--section-gap);
 }
 
 /* 工具栏 */
@@ -411,7 +411,7 @@ function onFocusTask(task) {
 .side-col {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--grid-gap);
 }
 
 .agenda-bulb {
@@ -533,7 +533,9 @@ function onFocusTask(task) {
 .chat-mode {
   display: flex;
   flex-direction: column;
-  height: calc(100dvh - var(--header-height) - 52px);
+  height: calc(100dvh - var(--header-height) - 88px);
+  min-height: 420px;
+  border: 1px solid var(--divider);
   background: var(--bg-primary);
   border-radius: 12px;
   overflow: hidden;
@@ -544,7 +546,7 @@ function onFocusTask(task) {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 20px;
+  padding: 20px 24px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--divider);
 }
@@ -590,7 +592,8 @@ function onFocusTask(task) {
 .chat-body-inner {
   max-width: 860px;
   margin: 0 auto;
-  padding: 16px 24px;
+  padding: 24px;
+  gap: 16px;
   display: flex;
   flex-direction: column;
 }

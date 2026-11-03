@@ -39,11 +39,20 @@ async def chat_with_llm(message: str, history: list) -> str:
         return data["choices"][0]["message"]["content"]
 
 
-async def ocr_with_llm(file_bytes: bytes, filename: str) -> str:
-    """视觉大模型 OCR：识别截图中的任务信息(简化演示实现)"""
-    if not settings.LLM_ENABLED:
+async def ocr_with_llm(file_bytes: bytes, mime_type: str) -> str:
+    """真实视觉识别；供应商或模型不支持图片时由路由明确返回不可用。"""
+    import base64
+    if not settings.LLM_ENABLED or not settings.LLM_API_KEY:
         raise RuntimeError("LLM not enabled")
-    # 实际项目中：图片转 base64 后调用多模态大模型，
-    # 提示词要求输出 JSON 任务列表。
-    # 这里返回占位文本，接入真实多模态接口后替换。
-    return f"[OCR占位] 已接收图片 {filename} ({len(file_bytes)} bytes)，接入多模态大模型后返回识别结果"
+    encoded = base64.b64encode(file_bytes).decode("ascii")
+    async with httpx.AsyncClient(timeout=30) as client:
+        response = await client.post(
+            f"{settings.LLM_BASE_URL.rstrip('/')}/chat/completions",
+            headers={"Authorization": f"Bearer {settings.LLM_API_KEY}"},
+            json={"model": settings.LLM_MODEL, "messages": [{"role": "user", "content": [
+                {"type": "text", "text": "请准确转录图片中的文字；无法辨认请注明，不要虚构任务。"},
+                {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{encoded}"}}
+            ]}], "max_tokens": 2000},
+        )
+        response.raise_for_status()
+        return response.json()["choices"][0]["message"]["content"]
