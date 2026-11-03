@@ -102,7 +102,7 @@ function formatDuration(min) {
 
 <style scoped>
 .task-card {
-  margin-bottom: 10px;
+  margin-bottom: 16px;
 }
 
 .row-top {
@@ -200,4 +200,5 @@ function formatDuration(min) {
   display: flex;
   gap: 6px;
 }
+.card:last-child { margin-bottom: 0; }
 </style>

@@ -349,11 +349,11 @@ function doLogout() {
 .page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--section-gap);
 }
 
 .account-card {
-  margin-bottom: 16px;
+  margin-bottom: 0;
 }
 
 .ac-info {
@@ -390,6 +390,8 @@ function doLogout() {
 
 .uh-body {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
   cursor: pointer;
 }
 
@@ -591,6 +593,7 @@ function doLogout() {
 
 .lib-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   margin-top: 14px;
@@ -644,5 +647,11 @@ function doLogout() {
   font-size: 13px;
   color: var(--text-secondary);
   flex-shrink: 0;
+}
+@media (max-width: 600px) {
+  .user-head { flex-wrap: wrap; }
+  .user-head .uh-body { flex: 1 1 calc(100% - 80px); }
+  .user-head > .el-button { margin-left: auto; }
+  .widget { padding: 16px 10px; }
 }
 </style>

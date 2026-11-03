@@ -1,7 +1,7 @@
 <template>
   <div class="card timer-card">
     <div class="head">
-      <span class="title">🎧 Study Session</span>
+      <span class="title">专注时刻</span>
       <span v-if="session" class="session-badge" :class="{ running: isRunning }">
         {{ isRunning ? '专注中' : '已暂停' }}
       </span>
@@ -84,7 +84,7 @@
     <!-- 今日任务进度 -->
     <div class="task-progress">
       <div class="tp-head">
-        <span>Task Progress</span>
+        <span>任务进度</span>
         <span>{{ doneCount }}/{{ totalCount }} · {{ progressPct }}%</span>
       </div>
       <el-progress :percentage="progressPct" :stroke-width="8" :show-text="false" color="#1E88E5" />
@@ -414,7 +414,7 @@ defineExpose({ setCourseAndTask })
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 14px;
 }
 
 .title {
@@ -440,7 +440,7 @@ defineExpose({ setCourseAndTask })
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 14px;
   text-align: left;
 }
 
@@ -460,7 +460,7 @@ defineExpose({ setCourseAndTask })
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 14px;
 }
 
 .kp-label {
@@ -478,7 +478,7 @@ defineExpose({ setCourseAndTask })
   position: relative;
   width: 160px;
   height: 160px;
-  margin: 8px auto;
+  margin: 24px auto;
 }
 
 .ring {
@@ -534,7 +534,7 @@ defineExpose({ setCourseAndTask })
   font-size: 12px;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 8px;
+  margin-bottom: 14px;
 }
 
 .tp-task {
@@ -571,7 +571,7 @@ defineExpose({ setCourseAndTask })
   font-size: 13px;
   color: var(--text-primary);
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-bottom: 14px;
 }
 
 .finish-radios {

@@ -99,10 +99,11 @@ function doDemo() {
   background: var(--bg-card);
   border-radius: 18px;
   padding: 36px 32px;
-  box-shadow: 0 24px 64px rgba(21, 101, 192, 0.25);
+  box-shadow: 0 16px 48px rgba(32, 52, 86, 0.08);
+  border: 1px solid var(--divider);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 20px;
 }
 
 .login-logo {

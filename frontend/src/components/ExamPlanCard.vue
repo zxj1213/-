@@ -65,7 +65,7 @@ const phaseLabel = computed(() => phaseMap[props.plan.phase]?.label || props.pla
 
 <style scoped>
 .plan-card {
-  margin-bottom: 8px;
+  margin-bottom: 16px;
 }
 
 .plan-card.today {
@@ -206,4 +206,5 @@ const phaseLabel = computed(() => phaseMap[props.plan.phase]?.label || props.pla
 .eval {
   color: var(--primary);
 }
+.card:last-child { margin-bottom: 0; }
 </style>
