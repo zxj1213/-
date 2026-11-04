@@ -83,7 +83,7 @@
             <div v-if="!filteredTasks.length" class="empty-state card">
               <span class="icon">✅</span>
               <span>没有筛选结果</span>
-              <span style="font-size: 11px">当前筛选条件下没有任务</span>
+              <span style="font-size: calc(0.6875rem * var(--font-scale)); line-height: 19.36px">当前筛选条件下没有任务</span>
             </div>
           </div>
         </div>
@@ -128,26 +128,42 @@
       </div>
     </template>
 
-    <!-- ============ 添加任务弹窗(AI解析) ============ -->
-    <el-dialog v-model="showAddTask" title="添加新任务" width="88%" align-center>
-      <div class="dialog-hint">输入或粘贴任务描述，AI 将自动识别任务信息</div>
-      <el-input
-        v-model="addTaskText"
-        type="textarea"
-        :rows="4"
-        placeholder="例如：下周一下午5点前交数据结构实验报告，第三章的课后题"
-        style="margin-top: 10px"
-      />
-      <div v-if="parsePreview" class="parse-preview">
-        <div class="pp-title">🤖 AI 识别结果：</div>
-        <div class="pp-line">优先级：<b>{{ parsePreview.priority }}</b></div>
-        <div class="pp-line">分类：<b>{{ parsePreview.category }}</b></div>
-        <div class="pp-line">截止时间：<b>{{ parsePreview.deadline }}</b></div>
-        <div class="pp-line">预计耗时：<b>{{ Math.floor(parsePreview.estimatedDuration / 60) }}小时{{ parsePreview.estimatedDuration % 60 }}分钟</b></div>
+    <!-- ============ 添加任务弹窗 ============ -->
+    <el-dialog v-model="showAddTask" title="添加新任务" width="min(88%, 680px)" align-center>
+      <el-form :model="taskForm" label-position="top" @submit.prevent="createTask">
+        <el-form-item label="任务名称" required>
+          <el-input v-model="taskForm.title" placeholder="例如：完成数据结构实验报告" aria-label="任务名称" />
+        </el-form-item>
+        <el-form-item label="任务截止时间" required>
+          <el-date-picker v-model="taskForm.deadline" type="datetime" value-format="YYYY-MM-DD HH:mm"
+            format="YYYY-MM-DD HH:mm" placeholder="选择截止日期和时间" aria-label="任务截止时间" style="width: 100%" />
+        </el-form-item>
+        <el-form-item required>
+          <template #label><span>任务内容</span><span class="content-count">{{ taskForm.contents.length }}/10</span></template>
+          <div class="task-content-list">
+            <div v-for="(_, index) in taskForm.contents" :key="index" class="task-content-row">
+              <el-input v-model="taskForm.contents[index]" type="textarea" :autosize="{ minRows: 2, maxRows: 5 }"
+                :placeholder="`填写第${index + 1}项任务内容`" :aria-label="`任务内容${index + 1}`" />
+              <div class="content-actions">
+                <el-button circle :disabled="taskForm.contents.length >= 10" :aria-label="`在第${index + 1}项后增加内容`" @click="addTaskContent(index)">
+                  <el-icon><Plus /></el-icon>
+                </el-button>
+                <el-button v-if="taskForm.contents.length > 1" circle :aria-label="`删除第${index + 1}项内容`" @click="removeTaskContent(index)">
+                  <el-icon><Minus /></el-icon>
+                </el-button>
+              </div>
+            </div>
+          </div>
+        </el-form-item>
+      </el-form>
+      <div class="priority-preview">
+        <div>紧急程度：<b>{{ taskForm.deadline ? taskPriority : '选择截止时间后自动计算' }}</b></div>
+        <div class="dialog-hint">≤1天：紧急 · ≤3天：高 · ≤7天：中 · &gt;7天：低（1天为24小时）</div>
+        <div class="dialog-hint">每项内容将保存为可勾选的子任务，最多10项。</div>
       </div>
       <template #footer>
         <el-button @click="showAddTask = false">取消</el-button>
-        <el-button type="primary" @click="createTaskFromText">AI 解析创建</el-button>
+        <el-button type="primary" @click="createTask">创建任务</el-button>
       </template>
     </el-dialog>
 
@@ -188,12 +204,11 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import { ref, reactive, computed, watch, nextTick, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAppStore } from '../store'
-import { todayStr, nowStr, formatDateCN, generateId } from '../constants'
-import { parseTaskFromText } from '../services/ai'
+import { todayStr, nowStr, formatDateCN, generateId, getTaskPriority, taskDeadlineTime } from '../constants'
 import { chatWithAI, ocrRecognize } from '../services/api'
 import TaskCard from '../components/TaskCard.vue'
 import ChatBubble from '../components/ChatBubble.vue'
@@ -209,7 +224,7 @@ const inputText = ref('')
 const chatBodyRef = ref(null)
 const activeFilter = ref('全部')
 const showAddTask = ref(false)
-const addTaskText = ref('')
+const taskForm = reactive({ title: '', deadline: '', contents: [''] })
 const showOcr = ref(false)
 const ocrProcessing = ref(false)
 const ocrResult = ref(null)
@@ -235,14 +250,11 @@ const filteredTasks = computed(() => {
   if (activeFilter.value === '全部') return tasks
   if (activeFilter.value === '待完成') return tasks.filter(t => t.status !== '已完成')
   if (activeFilter.value === '已完成') return tasks.filter(t => t.status === '已完成')
-  if (activeFilter.value === '紧急') return tasks.filter(t => t.priority === '紧急' || t.priority === '高')
+  if (activeFilter.value === '紧急') return tasks.filter(t => t.priority === '紧急')
   return tasks
 })
 
-const parsePreview = computed(() => {
-  if (!addTaskText.value.trim()) return null
-  return parseTaskFromText(addTaskText.value)
-})
+const taskPriority = computed(() => getTaskPriority(taskForm.deadline, store.taskPriorityNow))
 
 onMounted(() => {
   // 顶栏 AI助手 入口 → 直接进入对话模式
@@ -313,12 +325,39 @@ function onVoice() {
   }
 }
 
-function createTaskFromText() {
-  if (!addTaskText.value.trim()) return
-  const parsed = parseTaskFromText(addTaskText.value)
-  store.addTask({ ...parsed, id: undefined, createdAt: undefined, updatedAt: undefined })
+function addTaskContent(index) {
+  if (taskForm.contents.length >= 10) return
+  taskForm.contents.splice(index + 1, 0, '')
+}
+
+function removeTaskContent(index) {
+  if (taskForm.contents.length <= 1) return
+  taskForm.contents.splice(index, 1)
+}
+
+function createTask() {
+  const title = taskForm.title.trim()
+  const contents = taskForm.contents.map(content => content.trim())
+  if (!title) return ElMessage.warning('请填写任务名称')
+  if (!Number.isFinite(taskDeadlineTime(taskForm.deadline))) return ElMessage.warning('请选择有效的任务截止时间')
+  if (!contents.length || contents.length > 10 || contents.some(content => !content)) {
+    return ElMessage.warning('请填写每项任务内容，最多10项；多余空框可点击减号删除')
+  }
+  store.addTask({
+    title,
+    deadline: taskForm.deadline,
+    description: contents.join('\n'),
+    source: '手动添加',
+    category: '其他',
+    priority: getTaskPriority(taskForm.deadline),
+    status: '待完成',
+    estimatedDuration: 60,
+    attachments: [],
+    tags: [],
+    subTasks: contents.map(content => ({ id: generateId(), title: content, completed: false }))
+  })
   showAddTask.value = false
-  addTaskText.value = ''
+  Object.assign(taskForm, { title: '', deadline: '', contents: [''] })
   ElMessage.success('任务已添加 ✓')
 }
 
@@ -386,15 +425,17 @@ function onFocusTask(task) {
 }
 
 .tb-t {
-  font-size: 18px;
+  font-size: calc(1.125rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
+  line-height: 31.68px;
 }
 
 .tb-sub {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-hint);
   margin-left: 10px;
+  line-height: 21.12px;
 }
 
 .tb-actions {
@@ -415,8 +456,9 @@ function onFocusTask(task) {
 }
 
 .agenda-bulb {
-  font-size: 20px;
+  font-size: calc(1.25rem * var(--font-scale));
   cursor: pointer;
+  line-height: 35.2px;
 }
 
 .agenda-block {
@@ -429,53 +471,69 @@ function onFocusTask(task) {
 }
 
 .ag-title {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 6px;
+  line-height: 21.12px;
 }
 
 .ag-item {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-primary);
-  line-height: 1.9;
+  line-height: 25.08px;
 }
 
 .ag-meta {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 19.36px;
 }
 
 .ai-suggestions-card .as-item {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-secondary);
-  line-height: 1.7;
+  line-height: 22.44px;
   padding: 4px 0;
 }
 
 .dialog-hint {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 21.12px;
 }
 
-.parse-preview {
+.priority-preview {
   margin-top: 10px;
   background: var(--bg-primary);
   border-radius: 8px;
   padding: 10px;
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-secondary);
+  line-height: 21.12px;
 }
 
-.pp-title {
-  font-weight: bold;
-  color: var(--primary);
-  margin-bottom: 4px;
+.priority-preview .dialog-hint {
+  margin-top: 6px;
 }
 
-.pp-line {
-  line-height: 1.8;
+.task-content-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
 }
+
+.task-content-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.task-content-row > .el-textarea { flex: 1; min-width: 0; }
+.content-actions { display: flex; flex-direction: column; gap: 6px; }
+.content-actions .el-button + .el-button { margin-left: 0; }
+.content-count { margin-left: 8px; color: var(--text-secondary); font-size: calc(0.75rem * var(--font-scale)); line-height: 21.12px; }
 
 .ocr-upload {
   margin-top: 10px;
@@ -499,17 +557,20 @@ function onFocusTask(task) {
 }
 
 .op-icon {
-  font-size: 36px;
+  font-size: calc(2.25rem * var(--font-scale));
+  line-height: 63.36px;
 }
 
 .op-text {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--text-secondary);
+  line-height: 22.88px;
 }
 
 .op-sub {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 19.36px;
 }
 
 .ocr-result {
@@ -517,10 +578,10 @@ function onFocusTask(task) {
 }
 
 .or-text {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-primary);
   white-space: pre-wrap;
-  line-height: 1.6;
+  line-height: 21.12px;
   font-family: inherit;
 }
 
@@ -552,9 +613,10 @@ function onFocusTask(task) {
 }
 
 .back {
-  font-size: 26px;
+  font-size: calc(1.625rem * var(--font-scale));
   cursor: pointer;
   color: var(--text-primary);
+  line-height: 45.76px;
 }
 
 .chat-title {
@@ -562,21 +624,24 @@ function onFocusTask(task) {
 }
 
 .ct-name {
-  font-size: 16px;
+  font-size: calc(1rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
+  line-height: 28.16px;
 }
 
 .ct-state {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 19.36px;
 }
 
 .chat-more {
-  font-size: 18px;
+  font-size: calc(1.125rem * var(--font-scale));
   cursor: pointer;
   color: var(--text-secondary);
   padding: 4px 8px;
+  line-height: 31.68px;
 }
 
 .chat-body {
@@ -606,8 +671,9 @@ function onFocusTask(task) {
 }
 
 .thinking-text {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 21.12px;
 }
 
 .chat-input {
@@ -624,8 +690,9 @@ function onFocusTask(task) {
 }
 
 .ci-icon {
-  font-size: 20px;
+  font-size: calc(1.25rem * var(--font-scale));
   cursor: pointer;
   color: var(--text-secondary);
+  line-height: 35.2px;
 }
 </style>

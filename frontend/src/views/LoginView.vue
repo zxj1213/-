@@ -119,31 +119,35 @@ function doDemo() {
   border-radius: 12px;
   background: linear-gradient(135deg, #1E88E5, #26A69A);
   color: #fff;
-  font-size: 22px;
+  font-size: calc(1.375rem * var(--font-scale));
   font-weight: bold;
   display: flex;
   align-items: center;
   justify-content: center;
+  line-height: 38.72px;
 }
 
 .login-name {
-  font-size: 24px;
+  font-size: calc(1.5rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
+  line-height: 42.24px;
 }
 
 .login-name small {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   font-weight: normal;
   color: var(--text-hint);
   letter-spacing: 1px;
+  line-height: 21.12px;
 }
 
 .login-slogan {
   text-align: center;
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-secondary);
   margin-bottom: 8px;
+  line-height: 21.12px;
 }
 
 .login-input {
@@ -151,9 +155,9 @@ function doDemo() {
 }
 
 .login-tip {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
-  line-height: 1.6;
+  line-height: 19.36px;
   background: var(--bg-primary);
   border-radius: 8px;
   padding: 8px 10px;

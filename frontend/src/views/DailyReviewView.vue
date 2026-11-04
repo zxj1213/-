@@ -149,21 +149,23 @@ function onRefresh() {
 }
 
 .head-title {
-  font-size: 22px;
+  font-size: calc(1.375rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
+  line-height: 38.72px;
 }
 
 .refresh-chip {
   display: flex;
   align-items: center;
   gap: 3px;
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--primary);
   background: rgba(100, 181, 246, 0.15);
   padding: 7px 14px;
   border-radius: 16px;
   cursor: pointer;
+  line-height: 22.88px;
 }
 
 .date-selector {
@@ -187,21 +189,24 @@ function onRefresh() {
 }
 
 .dc-day {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
+  line-height: 22.88px;
 }
 
 .dc-date {
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   color: var(--text-hint);
   margin-top: 2px;
+  line-height: 17.6px;
 }
 
 .dc-check {
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   color: var(--success);
   margin-top: 2px;
+  line-height: 17.6px;
 }
 
 .date-chip.active .dc-day,
@@ -229,7 +234,8 @@ function onRefresh() {
 }
 
 .ge-icon {
-  font-size: 24px;
+  font-size: calc(1.5rem * var(--font-scale));
+  line-height: 42.24px;
 }
 
 .ge-text {
@@ -237,29 +243,34 @@ function onRefresh() {
 }
 
 .ge-title {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   font-weight: bold;
   color: var(--error);
+  line-height: 22.88px;
 }
 
 .ge-msg {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-secondary);
   margin-top: 2px;
+  line-height: 19.36px;
 }
 
 .g-text {
-  font-size: 14px;
+  font-size: calc(0.875rem * var(--font-scale));
   color: var(--text-secondary);
+  line-height: 24.64px;
 }
 
 .g-sub {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 21.12px;
 }
 
 .dialog-hint {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 21.12px;
 }
 </style>

@@ -25,11 +25,11 @@ function setup() {
     ...constants, ...adaptive, mock, defineStore, localStorage,
     setApiToken() {}, ElMessage: { error() {} },
     window: { matchMedia: () => ({ matches: false }) },
-    document: { documentElement: { classList: { toggle() {} }, setAttribute() {}, style: {} } }
+    document: { documentElement: { classList: { toggle() {} }, setAttribute() {}, style: { setProperty(key, value) { this[key] = value } } } }
   }
   vm.runInNewContext(`${source}\nthis.makeStore = () => useAppStore;`, ctx)
   const freshStore = () => ctx.makeStore()(createPinia())
-  return { store: freshStore(), freshStore, localStorage }
+  return { store: freshStore(), freshStore, localStorage, document: ctx.document }
 }
 
 test('registration links profile identity to account and starts with empty personal fields', () => {
@@ -158,4 +158,59 @@ test('only the four offered grades can be saved', () => {
   const refreshed = freshStore()
   refreshed.init()
   assert.equal(refreshed.userInfo.grade, '大二')
+})
+
+test('task creation, restoration and live refresh use the same deadline priority rules', () => {
+  const { store, freshStore } = setup()
+  store.login('任务测试', 'pass1234')
+  const deadline = '2030-01-08 12:00'
+  const task = store.addTask({ title: '内容任务', deadline, priority: '紧急',
+    subTasks: [{ id: 's1', title: '内容1', completed: false }] })
+  assert.ok(task.id)
+  assert.ok(task.createdAt)
+  assert.equal(task.priority, '低')
+  const refreshed = freshStore()
+  refreshed.init()
+  const saved = refreshed.tasks.find(item => item.id === task.id)
+  assert.equal(saved.subTasks[0].title, '内容1')
+  for (const [now, priority] of [
+    ['2030-01-01T11:59:59', '低'], ['2030-01-01T12:00:00', '中'],
+    ['2030-01-05T12:00:00', '高'], ['2030-01-07T12:00:00', '紧急']
+  ]) {
+    refreshed.refreshTaskPriorities(new Date(now).getTime())
+    assert.equal(saved.priority, priority)
+  }
+  refreshed.toggleSubTask(task.id, 's1')
+  assert.equal(saved.status, '已完成')
+})
+
+test('theme choices and three font positions apply directly and survive refresh', () => {
+  const { store, freshStore, document } = setup()
+  store.login('外观设置测试', 'pass1234')
+  const component = read('../src/views/PersonalCenterView.vue')
+  const script = stripImports(component.match(/<script setup>([\s\S]*?)<\/script>/)[1])
+  const ctx = { ref, computed, reactive, watch, useAppStore: () => store,
+    defineProps: () => ({ section: 'settings' }), ElMessage: { success() {} }, ...constants }
+  vm.runInNewContext(`${script}\nthis.preferences = { selectTheme, showThemePicker, fontSizeStep };`, ctx)
+  const { selectTheme, showThemePicker, fontSizeStep } = ctx.preferences
+  for (const theme of ['dark', 'light', 'auto']) {
+    showThemePicker.value = true
+    selectTheme(theme)
+    assert.equal(store.settings.theme, theme)
+    assert.equal(showThemePicker.value, false)
+  }
+  selectTheme('invalid')
+  assert.equal(store.settings.theme, 'auto')
+  for (const [step, size] of [[2, 'large'], [0, 'small'], [1, 'medium']]) {
+    fontSizeStep.value = step
+    assert.equal(store.settings.fontSize, size)
+    assert.equal(fontSizeStep.value, step)
+    assert.equal(document.documentElement.style.fontSize, '16px')
+    assert.equal(document.documentElement.style['--font-scale'], { small: '0.92', medium: '1', large: '1.1' }[size])
+  }
+  fontSizeStep.value = 2
+  const refreshed = freshStore()
+  refreshed.init()
+  assert.equal(refreshed.settings.fontSize, 'large')
+  assert.equal(refreshed.settings.theme, 'auto')
 })

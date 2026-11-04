@@ -36,10 +36,11 @@ function barColor(value) {
 
 <style scoped>
 .title {
-  font-size: 15px;
+  font-size: calc(0.9375rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
   margin-bottom: 12px;
+  line-height: 26.4px;
 }
 
 .chart {
@@ -59,9 +60,10 @@ function barColor(value) {
 }
 
 .val {
-  font-size: 9px;
+  font-size: calc(0.5625rem * var(--font-scale));
   color: var(--text-hint);
   margin-bottom: 2px;
+  line-height: 15.84px;
 }
 
 .bar-track {
@@ -79,8 +81,9 @@ function barColor(value) {
 }
 
 .label {
-  font-size: 9px;
+  font-size: calc(0.5625rem * var(--font-scale));
   color: var(--text-hint);
   margin-top: 4px;
+  line-height: 15.84px;
 }
 </style>

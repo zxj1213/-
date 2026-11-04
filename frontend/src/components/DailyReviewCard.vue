@@ -89,14 +89,16 @@ const scoreColor = computed(() => {
 }
 
 .date {
-  font-size: 14px;
+  font-size: calc(0.875rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
+  line-height: 24.64px;
 }
 
 .score {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   font-weight: bold;
+  line-height: 22.88px;
 }
 
 .grid {
@@ -110,15 +112,17 @@ const scoreColor = computed(() => {
 }
 
 .stat .v {
-  font-size: 16px;
+  font-size: calc(1rem * var(--font-scale));
   font-weight: bold;
   color: var(--primary);
+  line-height: 28.16px;
 }
 
 .stat .k {
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   color: var(--text-hint);
   margin-top: 2px;
+  line-height: 17.6px;
 }
 
 .explain {
@@ -129,16 +133,17 @@ const scoreColor = computed(() => {
 }
 
 .explain-title {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
   margin-bottom: 4px;
+  line-height: 21.12px;
 }
 
 .explain-body {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-secondary);
-  line-height: 1.7;
+  line-height: 22.44px;
   white-space: pre-wrap;
 }
 
@@ -147,16 +152,17 @@ const scoreColor = computed(() => {
 }
 
 .suggest-title {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
   margin-bottom: 4px;
+  line-height: 21.12px;
 }
 
 .suggest-item {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--secondary);
-  line-height: 1.8;
+  line-height: 23.76px;
 }
 
 .actions {
@@ -174,15 +180,16 @@ const scoreColor = computed(() => {
 }
 
 .ds-title {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
   margin-bottom: 4px;
+  line-height: 21.12px;
 }
 
 .ds-item {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-secondary);
-  line-height: 1.8;
+  line-height: 21.78px;
 }
 </style>

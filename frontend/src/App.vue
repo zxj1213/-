@@ -59,7 +59,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { TABS, TabMeta } from './constants'
 import { useAppStore } from './store'
@@ -73,6 +73,29 @@ const tabs = TABS
 const currentTitle = computed(() => route.meta?.title || '学迹')
 
 const isLoggedIn = computed(() => !!store.currentUserId)
+
+let priorityInterval
+let systemTheme
+function refreshPriorities() {
+  store.refreshTaskPriorities()
+}
+function followSystemTheme() {
+  if (store.settings?.theme === 'auto') store.applyTheme()
+}
+onMounted(() => {
+  refreshPriorities()
+  priorityInterval = setInterval(refreshPriorities, 1000)
+  window.addEventListener('focus', refreshPriorities)
+  document.addEventListener('visibilitychange', refreshPriorities)
+  systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
+  systemTheme.addEventListener('change', followSystemTheme)
+})
+onUnmounted(() => {
+  clearInterval(priorityInterval)
+  window.removeEventListener('focus', refreshPriorities)
+  document.removeEventListener('visibilitychange', refreshPriorities)
+  systemTheme?.removeEventListener('change', followSystemTheme)
+})
 
 function goTab(path) {
   if (route.path !== path) router.push(path)

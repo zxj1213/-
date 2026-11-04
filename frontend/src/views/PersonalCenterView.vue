@@ -5,6 +5,7 @@
       <div class="personal-menu-items">
         <router-link v-for="item in PersonalSections" :key="item.id" :to="`/me/${item.id}`"
           class="personal-menu-link" :class="{ active: activeSection.id === item.id }"
+          :style="{ '--menu-label-length': item.label.length }"
           :aria-current="activeSection.id === item.id ? 'page' : undefined">
           <el-icon><component :is="item.icon" /></el-icon>
           <span>{{ item.label }}</span>
@@ -108,23 +109,42 @@
       <!-- 设置 -->
       <div v-if="activeSection.id === 'settings'" class="card settings">
         <div class="settings-title">设置</div>
-        <div class="setting-item" @click="cycleTheme">
+        <div class="setting-item preference-item">
           <span class="si-emoji">🌙</span>
           <div class="si-body">
             <div class="si-title">主题模式</div>
             <div class="si-sub">{{ themeLabel }}</div>
           </div>
-          <span class="si-arrow">›</span>
+          <button ref="themeTrigger" type="button" class="theme-trigger" :aria-label="showThemePicker ? '收起主题选项' : '展开主题选项'"
+            aria-controls="theme-options" :aria-expanded="showThemePicker" @click="showThemePicker = !showThemePicker">
+            <el-icon aria-hidden="true"><ArrowDown /></el-icon>
+          </button>
         </div>
+        <el-collapse-transition>
+          <div v-show="showThemePicker" @keydown.esc.stop.prevent="closeThemePicker">
+            <div id="theme-options" class="theme-options" role="group" aria-label="主题模式选项">
+              <button v-for="option in themeOptions" :key="option.value" type="button" class="theme-option"
+                :class="{ selected: store.settings.theme === option.value }" :aria-pressed="store.settings.theme === option.value"
+                @click="selectTheme(option.value)">
+                <span>{{ option.label }}</span>
+                <el-icon v-if="store.settings.theme === option.value" aria-hidden="true"><Check /></el-icon>
+              </button>
+            </div>
+          </div>
+        </el-collapse-transition>
         <el-divider style="margin: 0" />
-        <div class="setting-item" @click="cycleFontSize">
+        <div class="setting-item preference-item font-size-row">
           <span class="si-emoji">📐</span>
           <div class="si-body">
             <div class="si-title">字体大小</div>
             <div class="si-sub">{{ fontSizeLabel }}</div>
           </div>
-          <span class="si-arrow">›</span>
+          <div class="font-size-control">
+            <el-slider v-model="fontSizeStep" :min="0" :max="2" :step="1" :marks="fontSizeMarks"
+              :show-tooltip="false" show-stops aria-label="字体大小：小号、标准、大号" />
+          </div>
         </div>
+        <div class="font-size-preview">学迹，让学习更有计划</div>
         <el-divider style="margin: 0" />
         <div class="setting-item">
           <span class="si-emoji">🔔</span>
@@ -252,6 +272,7 @@ watch(() => props.section, () => {
   showEdit.value = false
   showPassword.value = false
   passwordInput.value = ''
+  showThemePicker.value = false
 })
 
 const devices = [
@@ -262,6 +283,21 @@ const devices = [
 
 const libraryUnlocked = ref(false)
 const showEdit = ref(false)
+const showThemePicker = ref(false)
+const themeTrigger = ref(null)
+const themeOptions = [
+  { value: 'light', label: '浅色模式' },
+  { value: 'dark', label: '深色模式' },
+  { value: 'auto', label: '跟随系统' }
+]
+const fontSizes = ['small', 'medium', 'large']
+const fontSizeMarks = { 0: '小号', 1: '标准', 2: '大号' }
+const fontSizeStep = computed({
+  get: () => Math.max(0, fontSizes.indexOf(store.settings?.fontSize || 'medium')),
+  set: (step) => {
+    if (Number.isInteger(step) && fontSizes[step]) store.updateSettings({ fontSize: fontSizes[step] })
+  }
+})
 const showGradePicker = ref(false)
 const gradeOptions = ['大一', '大二', '大三', '大四']
 const showPassword = ref(false)
@@ -322,16 +358,15 @@ const authStyle = computed(() => ({
   color: store.authState.isAuthenticated ? '#4CAF50' : '#F44336'
 }))
 
-function cycleTheme() {
-  const next = { light: 'dark', dark: 'auto', auto: 'light' }[store.settings.theme] || 'light'
-  store.updateSettings({ theme: next })
-  ElMessage.success(`主题: ${themeLabel.value}`)
+function selectTheme(theme) {
+  if (!themeOptions.some(option => option.value === theme)) return
+  store.updateSettings({ theme })
+  closeThemePicker()
 }
 
-function cycleFontSize() {
-  const next = { small: 'medium', medium: 'large', large: 'small' }[store.settings.fontSize] || 'medium'
-  store.updateSettings({ fontSize: next })
-  ElMessage.success(`字体: ${fontSizeLabel.value}`)
+function closeThemePicker() {
+  showThemePicker.value = false
+  themeTrigger.value?.focus()
 }
 
 async function configureBackend() {
@@ -417,9 +452,10 @@ function doLogout() {
 
 .personal-menu-title {
   padding: 4px 12px 16px;
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-secondary);
+  line-height: 22.88px;
 }
 
 .personal-menu-items {
@@ -435,8 +471,9 @@ function doLogout() {
   padding: 12px;
   border-radius: 10px;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   text-decoration: none;
+  line-height: 22.88px;
 }
 
 .personal-menu-link:hover,
@@ -456,9 +493,10 @@ function doLogout() {
 
 .personal-section-title {
   margin: 0;
-  font-size: 22px;
+  font-size: calc(1.375rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
+  line-height: 38.72px;
 }
 
 .page {
@@ -473,9 +511,9 @@ function doLogout() {
 }
 
 .ac-info {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-secondary);
-  line-height: 1.7;
+  line-height: 22.44px;
 }
 
 .ac-actions {
@@ -499,9 +537,10 @@ function doLogout() {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 34px;
+  font-size: calc(2.125rem * var(--font-scale));
   cursor: pointer;
   flex-shrink: 0;
+  line-height: 59.84px;
 }
 
 .uh-body {
@@ -512,26 +551,30 @@ function doLogout() {
 }
 
 .uh-name {
-  font-size: 21px;
+  font-size: calc(1.3125rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
+  line-height: 36.96px;
 }
 
 .uh-edit {
-  font-size: 16px;
+  font-size: calc(1rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 28.16px;
 }
 
 .uh-school {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--text-secondary);
   margin-top: 4px;
+  line-height: 22.88px;
 }
 
 .uh-id {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
   margin-top: 2px;
+  line-height: 19.36px;
 }
 
 .widget {
@@ -542,12 +585,13 @@ function doLogout() {
 
 .widget-badge {
   display: inline-block;
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   font-weight: 600;
   color: #fff;
   background: var(--primary);
   padding: 3px 8px;
   border-radius: 8px;
+  line-height: 21.12px;
 }
 
 .widget-stats {
@@ -561,19 +605,22 @@ function doLogout() {
 }
 
 .ws-emoji {
-  font-size: 18px;
+  font-size: calc(1.125rem * var(--font-scale));
+  line-height: 31.68px;
 }
 
 .ws-v {
-  font-size: 18px;
+  font-size: calc(1.125rem * var(--font-scale));
   font-weight: bold;
   color: #fff;
   margin-top: 4px;
+  line-height: 31.68px;
 }
 
 .ws-k {
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   color: rgba(255, 255, 255, 0.65);
+  line-height: 17.6px;
 }
 
 .widget-toggles {
@@ -588,9 +635,10 @@ function doLogout() {
 }
 
 .widget-toggles :deep(.el-checkbox__label) {
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   color: rgba(255, 255, 255, 0.85);
   padding-left: 4px;
+  line-height: 17.6px;
 }
 
 .devices {
@@ -612,10 +660,11 @@ function doLogout() {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
+  font-size: calc(1.75rem * var(--font-scale));
   background: var(--bg-primary);
   border: 1px solid var(--divider);
   opacity: 0.4;
+  line-height: 49.28px;
 }
 
 .device-icon.connected {
@@ -625,17 +674,19 @@ function doLogout() {
 }
 
 .device-name {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-primary);
   margin-top: 6px;
+  line-height: 21.12px;
 }
 
 .device-status {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 17.6px;
 }
 
 .dot {
@@ -650,22 +701,24 @@ function doLogout() {
 }
 
 .device-sync {
-  font-size: 9px;
+  font-size: calc(0.5625rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 15.84px;
 }
 
 .device-note {
   margin-top: 10px;
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
-  line-height: 1.6;
+  line-height: 19.36px;
 }
 
 .settings-title {
-  font-size: 16px;
+  font-size: calc(1rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
   margin-bottom: 6px;
+  line-height: 28.16px;
 }
 
 .setting-item {
@@ -673,37 +726,120 @@ function doLogout() {
   align-items: center;
   gap: 12px;
   padding: 14px 0;
+  min-height: 80px;
   cursor: pointer;
 }
 
 .si-emoji {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 32px;
   font-size: 20px;
+  line-height: 32px;
 }
 
 .si-body {
   flex: 1;
+  min-width: 0;
 }
 
 .si-title {
-  font-size: 14px;
+  font-size: calc(0.875rem * var(--font-scale));
   color: var(--text-primary);
+  line-height: 24px;
 }
 
 .si-sub {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
   margin-top: 2px;
+  line-height: 20px;
 }
 
 .si-arrow {
-  font-size: 22px;
+  font-size: calc(1.375rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 38.72px;
+}
+
+.preference-item { cursor: default; }
+.theme-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--divider);
+  border-radius: 50%;
+  font: inherit;
+  font-size: calc(0.875rem * var(--font-scale));
+  line-height: 15.4px;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  cursor: pointer;
+}
+.theme-trigger .el-icon { transition: transform 180ms ease; }
+.theme-trigger[aria-expanded='true'] .el-icon { transform: rotate(180deg); }
+.theme-trigger:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.theme-options {
+  width: calc(100% - 44px);
+  max-width: 320px;
+  margin: 0 0 16px 44px;
+  padding: 6px;
+  border: 1px solid var(--divider);
+  border-radius: 10px;
+  background: var(--bg-primary);
+}
+.theme-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: calc(0.8125rem * var(--font-scale));
+  text-align: left;
+  cursor: pointer;
+  line-height: 22.88px;
+}
+.theme-option:hover,
+.theme-option.selected { color: var(--primary); background: var(--accent-soft); }
+.theme-option.selected { font-weight: 600; }
+.theme-option:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.font-size-row .si-body { min-width: 72px; }
+.font-size-control {
+  flex: 0 1 200px;
+  width: 200px;
+  min-width: 120px;
+  height: 60px;
+  margin-left: auto;
+  padding: 0 10px 20px;
+}
+.font-size-preview {
+  display: flex;
+  align-items: center;
+  height: 64px;
+  margin: 0 0 20px 44px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: calc(1rem * var(--font-scale));
+  line-height: 28px;
 }
 
 .lib-desc {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-secondary);
-  line-height: 1.7;
+  line-height: 22.44px;
   margin-top: 4px;
 }
 
@@ -717,8 +853,9 @@ function doLogout() {
 
 .lib-unlocked {
   flex: 1;
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--success);
+  line-height: 22.88px;
 }
 
 .about-grid {
@@ -731,14 +868,16 @@ function doLogout() {
   display: flex;
   justify-content: space-between;
   padding: 12px 0;
-  font-size: 14px;
+  font-size: calc(0.875rem * var(--font-scale));
   color: var(--text-primary);
   border-bottom: 1px solid var(--divider);
+  line-height: 24.64px;
 }
 
 .about-item span:last-child {
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
+  line-height: 22.88px;
 }
 
 .about-item.link {
@@ -769,6 +908,7 @@ function doLogout() {
   }
   .personal-menu-link {
     flex-shrink: 0;
+    width: calc(var(--menu-label-length) * 14.3px + 52px);
     white-space: nowrap;
   }
 }
@@ -782,9 +922,10 @@ function doLogout() {
 
 .er-label {
   width: 40px;
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--text-secondary);
   flex-shrink: 0;
+  line-height: 22.88px;
 }
 
 .grade-picker,
@@ -803,8 +944,9 @@ function doLogout() {
 .grade-picker {
   flex: 1;
   padding: 6px 12px;
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   text-align: left;
+  line-height: 21.12px;
 }
 
 .grade-options {

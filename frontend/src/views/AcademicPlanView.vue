@@ -209,8 +209,8 @@
       <div class="dialog-hint">支持 PDF / PPT / Word / 笔记，AI 自动提取章节知识点（单文件 ≤ 10MB）</div>
       <div class="upload-zone" @click="pickUpload">
         <input ref="uploadFile" type="file" multiple hidden @change="onUploadFile" />
-        <span style="font-size: 32px">📄</span>
-        <span style="font-size: 12px; color: var(--text-hint)">点击选择文件（可多选）</span>
+        <span style="font-size: calc(2rem * var(--font-scale)); line-height: 56.32px">📄</span>
+        <span style="font-size: calc(0.75rem * var(--font-scale)); line-height: 21.12px; color: var(--text-hint)">点击选择文件（可多选）</span>
       </div>
       <div v-if="parsing" class="parse-progress">
         <el-icon class="is-loading" :size="20"><Loading /></el-icon>
@@ -440,9 +440,10 @@ function confirmKps() {
 }
 
 .qe-icon {
-  font-size: 18px;
+  font-size: calc(1.125rem * var(--font-scale));
   opacity: 0.4;
   transition: opacity 0.2s;
+  line-height: 31.68px;
 }
 
 .quick-entry.active .qe-icon {
@@ -450,8 +451,9 @@ function confirmKps() {
 }
 
 .qe-label {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--text-secondary);
+  line-height: 22.88px;
 }
 
 .quick-entry.active .qe-label {
@@ -459,10 +461,11 @@ function confirmKps() {
 }
 
 .sub-title {
-  font-size: 18px;
+  font-size: calc(1.125rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
   margin-bottom: 12px;
+  line-height: 31.68px;
 }
 
 .sub-title-row {
@@ -501,8 +504,9 @@ function confirmKps() {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: calc(1.125rem * var(--font-scale));
   flex-shrink: 0;
+  line-height: 31.68px;
 }
 
 .mem-body {
@@ -511,9 +515,9 @@ function confirmKps() {
 }
 
 .mem-content {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--text-primary);
-  line-height: 1.5;
+  line-height: 21.45px;
 }
 
 .mem-meta {
@@ -524,8 +528,9 @@ function confirmKps() {
 }
 
 .mem-star {
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 17.6px;
 }
 
 .goal-item {
@@ -545,9 +550,10 @@ function confirmKps() {
 }
 
 .goal-name {
-  font-size: 14px;
+  font-size: calc(0.875rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
+  line-height: 24.64px;
 }
 
 .goal-match {
@@ -558,20 +564,23 @@ function confirmKps() {
 }
 
 .gm-text {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 19.36px;
 }
 
 .goal-gap {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--warning);
   margin-top: 4px;
+  line-height: 19.36px;
 }
 
 .path-title {
-  font-size: 14px;
+  font-size: calc(0.875rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
+  line-height: 24.64px;
 }
 
 .path-row {
@@ -586,8 +595,9 @@ function confirmKps() {
 }
 
 .path-arrow {
-  font-size: 16px;
+  font-size: calc(1rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 28.16px;
 }
 
 .comp-card {
@@ -603,15 +613,17 @@ function confirmKps() {
 }
 
 .comp-name {
-  font-size: 15px;
+  font-size: calc(0.9375rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
+  line-height: 26.4px;
 }
 
 .comp-meta {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-hint);
   margin-top: 2px;
+  line-height: 21.12px;
 }
 
 .comp-score {
@@ -619,26 +631,30 @@ function confirmKps() {
 }
 
 .cs-v {
-  font-size: 18px;
+  font-size: calc(1.125rem * var(--font-scale));
   font-weight: bold;
+  line-height: 31.68px;
 }
 
 .cs-k {
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 17.6px;
 }
 
 .comp-desc {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--text-secondary);
   margin-top: 8px;
   flex: 1;
+  line-height: 22.88px;
 }
 
 .comp-gap {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--warning);
   margin-top: 6px;
+  line-height: 21.12px;
 }
 
 .comp-foot {
@@ -649,8 +665,9 @@ function confirmKps() {
 }
 
 .comp-deadline {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 19.36px;
 }
 
 .career-head {
@@ -660,9 +677,10 @@ function confirmKps() {
 }
 
 .career-name {
-  font-size: 16px;
+  font-size: calc(1rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
+  line-height: 28.16px;
 }
 
 .career-reqs {
@@ -673,9 +691,9 @@ function confirmKps() {
 }
 
 .req-item {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--text-secondary);
-  line-height: 1.8;
+  line-height: 25.74px;
 }
 
 .career-actions {
@@ -683,15 +701,17 @@ function confirmKps() {
 }
 
 .ca-title {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   font-weight: 600;
   color: var(--secondary);
+  line-height: 21.12px;
 }
 
 .ca-item {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--text-primary);
   margin-top: 3px;
+  line-height: 22.88px;
 }
 
 .doc-card {
@@ -707,8 +727,9 @@ function confirmKps() {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: calc(1.5rem * var(--font-scale));
   flex-shrink: 0;
+  line-height: 42.24px;
 }
 
 .doc-body {
@@ -717,29 +738,33 @@ function confirmKps() {
 }
 
 .doc-title {
-  font-size: 14px;
+  font-size: calc(0.875rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
+  line-height: 24.64px;
 }
 
 .doc-meta {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
   margin-top: 2px;
+  line-height: 19.36px;
 }
 
 .doc-summary {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-secondary);
   margin-top: 3px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 21.12px;
 }
 
 .doc-arrow {
   color: var(--text-hint);
-  font-size: 18px;
+  font-size: calc(1.125rem * var(--font-scale));
+  line-height: 31.68px;
 }
 
 .search-row {
@@ -756,8 +781,9 @@ function confirmKps() {
 }
 
 .train-info {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--text-secondary);
+  line-height: 22.88px;
 }
 
 .train-stats {
@@ -775,15 +801,17 @@ function confirmKps() {
 }
 
 .ts-v {
-  font-size: 18px;
+  font-size: calc(1.125rem * var(--font-scale));
   font-weight: bold;
   color: var(--primary);
+  line-height: 31.68px;
 }
 
 .ts-k {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
   margin-top: 2px;
+  line-height: 19.36px;
 }
 
 .train-reqs {
@@ -794,16 +822,17 @@ function confirmKps() {
 }
 
 .tr-title {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 4px;
+  line-height: 21.12px;
 }
 
 .tr-item {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-secondary);
-  line-height: 1.8;
+  line-height: 23.76px;
 }
 
 .course-row {
@@ -819,38 +848,42 @@ function confirmKps() {
 }
 
 .course-name {
-  font-size: 15px;
+  font-size: calc(0.9375rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
+  line-height: 26.4px;
 }
 
 .course-credit {
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   color: var(--text-hint);
   margin-left: auto;
+  line-height: 17.6px;
 }
 
 .course-meta {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-secondary);
+  line-height: 21.12px;
 }
 
 .course-desc {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-hint);
-  line-height: 1.6;
+  line-height: 21.12px;
 }
 
 .mem-desc {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--text-secondary);
   margin-bottom: 14px;
-  line-height: 1.6;
+  line-height: 22.88px;
 }
 
 .dialog-hint {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 21.12px;
 }
 
 .upload-zone {
@@ -871,8 +904,9 @@ function confirmKps() {
   align-items: center;
   gap: 8px;
   margin-top: 10px;
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--primary);
+  line-height: 21.12px;
 }
 
 .pp-text {
@@ -887,8 +921,9 @@ function confirmKps() {
 }
 
 .pe-item {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--error);
+  line-height: 19.36px;
 }
 
 .kc-course-row {
@@ -899,9 +934,10 @@ function confirmKps() {
 }
 
 .kc-label {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--text-secondary);
   white-space: nowrap;
+  line-height: 22.88px;
 }
 
 .kc-row {
@@ -916,12 +952,13 @@ function confirmKps() {
 }
 
 .kc-source {
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   color: var(--text-hint);
   max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 17.6px;
 }
 
 .kc-del {
@@ -930,10 +967,11 @@ function confirmKps() {
 }
 
 .kc-add {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--primary);
   cursor: pointer;
   padding: 6px 0;
+  line-height: 21.12px;
 }
 .quick-entries { overflow-x: auto; }
 .quick-entry { flex-shrink: 0; white-space: nowrap; }

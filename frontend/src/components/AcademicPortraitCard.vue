@@ -58,19 +58,22 @@ defineProps({
 }
 
 .icon {
-  font-size: 32px;
+  font-size: calc(2rem * var(--font-scale));
+  line-height: 56.32px;
 }
 
 .name {
-  font-size: 15px;
+  font-size: calc(0.9375rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
+  line-height: 26.4px;
 }
 
 .sub {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-secondary);
   margin-top: 2px;
+  line-height: 19.36px;
 }
 
 .skills {
@@ -87,20 +90,23 @@ defineProps({
 }
 
 .skill-name {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
+  line-height: 22.88px;
 }
 
 .skill-level {
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   color: #FFB300;
+  line-height: 17.6px;
 }
 
 .skill-evidence {
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   color: var(--text-hint);
   margin-top: 2px;
+  line-height: 17.6px;
 }
 
 .two-col {
@@ -114,9 +120,10 @@ defineProps({
 }
 
 .col-label {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   font-weight: bold;
   margin-bottom: 4px;
+  line-height: 21.12px;
 }
 
 .col-label.good {
@@ -128,9 +135,9 @@ defineProps({
 }
 
 .col-item {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-secondary);
-  line-height: 1.7;
+  line-height: 20.57px;
 }
 
 .badges {

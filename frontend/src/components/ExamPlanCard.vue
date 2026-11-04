@@ -81,14 +81,16 @@ const phaseLabel = computed(() => phaseMap[props.plan.phase]?.label || props.pla
 }
 
 .day {
-  font-size: 14px;
+  font-size: calc(0.875rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
+  line-height: 24.64px;
 }
 
 .date {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 19.36px;
 }
 
 .tag.adjusted {
@@ -103,16 +105,18 @@ const phaseLabel = computed(() => phaseMap[props.plan.phase]?.label || props.pla
 
 .phase-tag {
   margin-left: auto;
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   padding: 2px 8px;
   border-radius: 10px;
+  line-height: 17.6px;
 }
 
 .lock-btn {
   cursor: pointer;
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   opacity: 0.75;
   transition: opacity 0.2s;
+  line-height: 22.88px;
 }
 
 .lock-btn:hover {
@@ -141,10 +145,11 @@ const phaseLabel = computed(() => phaseMap[props.plan.phase]?.label || props.pla
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
   flex-wrap: wrap;
+  line-height: 22.88px;
 }
 
 .ch-name .done {
@@ -153,16 +158,18 @@ const phaseLabel = computed(() => phaseMap[props.plan.phase]?.label || props.pla
 }
 
 .target-badge {
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   color: #FF9800;
   font-weight: normal;
+  line-height: 17.6px;
 }
 
 .ch-meta {
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   color: var(--text-hint);
   margin-top: 3px;
   margin-left: 22px;
+  line-height: 17.6px;
 }
 
 .practices {
@@ -176,11 +183,12 @@ const phaseLabel = computed(() => phaseMap[props.plan.phase]?.label || props.pla
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--text-primary);
   background: var(--bg-primary);
   border-radius: 8px;
   padding: 8px 10px;
+  line-height: 22.88px;
 }
 
 .practice .done {
@@ -193,8 +201,9 @@ const phaseLabel = computed(() => phaseMap[props.plan.phase]?.label || props.pla
   align-items: center;
   gap: 12px;
   margin-top: 10px;
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-secondary);
+  line-height: 19.36px;
 }
 
 .done-badge {

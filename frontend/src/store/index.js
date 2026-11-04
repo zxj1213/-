@@ -7,7 +7,7 @@
 import { ElMessage } from 'element-plus'
 import { setApiToken } from '../services/api'
 import { defineStore } from 'pinia'
-import { StorageConstants, todayStr, nowStr, addDays, generateId } from '../constants'
+import { StorageConstants, todayStr, nowStr, addDays, generateId, getTaskPriority } from '../constants'
 import * as mock from '../mock/data'
 import {
   recordPractice, recordPracticeBatch, generateRecommendations, replanByResults
@@ -34,6 +34,7 @@ function normalizeState(data) {
     settings: null,
     widgetConfig: null,
     tasks: [],
+    taskPriorityNow: Date.now(),
     chatMessages: [],
     todayAgenda: null,
     courses: [],
@@ -57,7 +58,7 @@ function normalizeState(data) {
   if (state.settings) state.settings.autoSync = false
 
   // 任务补齐 actualMinutes
-  state.tasks = (state.tasks || []).map(t => ({ actualMinutes: 0, ...t }))
+  state.tasks = (state.tasks || []).map(t => ({ actualMinutes: 0, ...t, priority: getTaskPriority(t.deadline) }))
 
   // 考试补齐每日预算
   state.exams = (state.exams || []).map(e => ({ dailyMinutes: 90, ...e }))
@@ -233,6 +234,7 @@ export const useAppStore = defineStore('app', {
       this.authState = { isAuthenticated: true, privateLibraryEncrypted: false }
       this.widgetConfig = mock.getMockWidgetConfig()
       this.tasks = mock.getMockTasks()
+      this.refreshTaskPriorities()
       this.chatMessages = mock.getMockChatMessages()
       this.todayAgenda = mock.getMockTodayAgenda()
       this.courses = mock.getMockCourses()
@@ -288,7 +290,9 @@ export const useAppStore = defineStore('app', {
       document.documentElement.classList.toggle('dark', dark)
       document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
       const sizeMap = { small: '0.92', medium: '1', large: '1.1' }
-      document.documentElement.style.fontSize = (sizeMap[this.settings?.fontSize] || 1) * 16 + 'px'
+      // 固定布局基准，仅缩放文字；字号不再改变 rem 布局和控件尺寸。
+      document.documentElement.style.fontSize = '16px'
+      document.documentElement.style.setProperty('--font-scale', sizeMap[this.settings?.fontSize] || '1')
     },
 
     // ==================== 用户与设置 ====================
@@ -322,10 +326,15 @@ export const useAppStore = defineStore('app', {
     },
 
     // ==================== 任务(单一状态源) ====================
+    refreshTaskPriorities(now = Date.now()) {
+      this.taskPriorityNow = now
+      for (const task of this.tasks) task.priority = getTaskPriority(task.deadline, now)
+    },
+
     addTask(task) {
       const t = {
         id: generateId(), createdAt: nowStr(), updatedAt: nowStr(),
-        actualMinutes: 0, ...task
+        actualMinutes: 0, ...task, priority: getTaskPriority(task.deadline)
       }
       this.tasks.unshift(t)
       this.save()
