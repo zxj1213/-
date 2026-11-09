@@ -43,20 +43,23 @@ function renderContent(content) {
 .digital-human.small {
   width: 32px;
   height: 32px;
-  font-size: 16px;
+  font-size: calc(1rem * var(--font-scale));
   flex-shrink: 0;
+  line-height: 28.16px;
 }
 
 .time {
-  font-size: 9px;
+  font-size: calc(0.5625rem * var(--font-scale));
   color: var(--text-hint);
   margin-top: 4px;
   text-align: right;
+  line-height: 15.84px;
 }
 
 .attach {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   margin-bottom: 4px;
   opacity: 0.8;
+  line-height: 19.36px;
 }
 </style>

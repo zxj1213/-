@@ -82,29 +82,35 @@
         </div>
       </template>
 
-      <!-- ============ 竞赛推荐 ============ -->
+      <!-- ============ 竞赛库与推荐 ============ -->
       <template v-else-if="currentSub === 'competition'">
-        <div class="sub-title">竞赛推荐</div>
-        <div class="grid-3">
-          <div v-for="comp in store.competitions" :key="comp.id" class="card comp-card fade-up">
-            <div class="comp-top">
-              <div>
-                <div class="comp-name">{{ comp.name }}</div>
-                <div class="comp-meta">{{ comp.level }} · {{ comp.category }}</div>
-              </div>
-              <div class="comp-score">
-                <div class="cs-v" :style="{ color: matchColor(comp.matchScore) }">{{ comp.matchScore }}%</div>
-                <div class="cs-k">匹配度</div>
+        <el-tabs v-model="competitionTab">
+          <el-tab-pane label="认定竞赛库" name="catalog">
+            <CompetitionCatalog />
+          </el-tab-pane>
+          <el-tab-pane label="竞赛推荐（演示）" name="recommendations" lazy>
+            <div class="grid-3">
+              <div v-for="comp in store.competitions" :key="comp.id" class="card comp-card fade-up">
+                <div class="comp-top">
+                  <div>
+                    <div class="comp-name">{{ comp.name }}</div>
+                    <div class="comp-meta">{{ comp.level }} · {{ comp.category }}</div>
+                  </div>
+                  <div class="comp-score">
+                    <div class="cs-v" :style="{ color: matchColor(comp.matchScore) }">{{ comp.matchScore }}%</div>
+                    <div class="cs-k">匹配度</div>
+                  </div>
+                </div>
+                <div class="comp-desc">{{ comp.description }}</div>
+                <div v-if="comp.skillGaps?.length" class="comp-gap">💡 需提升: {{ comp.skillGaps.join('、') }}</div>
+                <div class="comp-foot">
+                  <span class="comp-deadline">报名截止: {{ comp.registrationDeadline }}</span>
+                  <el-button size="small" round plain type="primary">查看详情</el-button>
+                </div>
               </div>
             </div>
-            <div class="comp-desc">{{ comp.description }}</div>
-            <div v-if="comp.skillGaps?.length" class="comp-gap">💡 需提升: {{ comp.skillGaps.join('、') }}</div>
-            <div class="comp-foot">
-              <span class="comp-deadline">报名截止: {{ comp.registrationDeadline }}</span>
-              <el-button size="small" round plain type="primary">查看详情</el-button>
-            </div>
-          </div>
-        </div>
+          </el-tab-pane>
+        </el-tabs>
       </template>
 
       <!-- ============ 升学/就业推荐 ============ -->
@@ -128,29 +134,7 @@
       </template>
 
       <!-- ============ 知识库 ============ -->
-      <template v-else-if="currentSub === 'knowledge'">
-        <div class="sub-title-row">
-          <span class="sub-title" style="margin: 0">知识库</span>
-          <el-button size="small" type="primary" round @click="showUpload = true">
-            <el-icon><Plus /></el-icon>&nbsp;上传资料
-          </el-button>
-        </div>
-        <div class="grid-2">
-          <div v-for="doc in store.knowledgeDocs" :key="doc.id" class="card doc-card">
-            <span class="doc-icon" :style="{ background: 'rgba(100,181,246,0.15)' }">{{ docEmoji(doc.type) }}</span>
-            <div class="doc-body">
-              <div class="doc-title">{{ doc.title }}</div>
-              <div class="doc-meta">{{ doc.type }}{{ doc.courseName ? ` · ${doc.courseName}` : '' }} · {{ doc.uploadDate }}</div>
-              <div class="doc-summary">{{ doc.summary }}</div>
-            </div>
-            <el-icon class="doc-arrow"><ArrowRight /></el-icon>
-          </div>
-        </div>
-        <div class="card search-row">
-          <el-icon><Search /></el-icon>
-          <el-input placeholder="在知识库中搜索（RAG智能检索）..." :borderless="true" size="small" />
-        </div>
-      </template>
+      <KnowledgeLibrary v-else-if="currentSub === 'knowledge'" />
 
       <!-- ============ 课程管理 ============ -->
       <template v-else-if="currentSub === 'courses'">
@@ -204,72 +188,20 @@
       </template>
     </div>
 
-    <!-- 上传资料弹窗(B2：解析进度与失败提示) -->
-    <el-dialog v-model="showUpload" title="上传资料到知识库" width="88%" align-center>
-      <div class="dialog-hint">支持 PDF / PPT / Word / 笔记，AI 自动提取章节知识点（单文件 ≤ 10MB）</div>
-      <div class="upload-zone" @click="pickUpload">
-        <input ref="uploadFile" type="file" multiple hidden @change="onUploadFile" />
-        <span style="font-size: 32px">📄</span>
-        <span style="font-size: 12px; color: var(--text-hint)">点击选择文件（可多选）</span>
-      </div>
-      <div v-if="parsing" class="parse-progress">
-        <el-icon class="is-loading" :size="20"><Loading /></el-icon>
-        <span class="pp-text">AI 正在解析资料并提取知识点...</span>
-      </div>
-      <div v-if="parseErrors.length" class="parse-errors">
-        <div v-for="err in parseErrors" :key="err" class="pe-item">⚠️ {{ err }}</div>
-      </div>
-    </el-dialog>
-
-    <!-- 知识点确认弹窗(B2：解析结果人工确认/修改) -->
-    <el-dialog v-model="showKpConfirm" title="确认解析出的知识点" width="88%" align-center>
-      <div class="dialog-hint">
-        AI 从资料中提取了以下知识点，可修改名称或删除，确认后进入学习计划流程（来源可追溯）
-      </div>
-      <div class="kc-course-row">
-        <span class="kc-label">归属课程</span>
-        <el-select v-model="kpConfirmCourseId" size="small" style="flex: 1">
-          <el-option v-for="c in store.courses" :key="c.id" :label="c.name" :value="c.id" />
-        </el-select>
-      </div>
-      <div v-for="(kp, i) in kpConfirmList" :key="i" class="kc-row">
-        <el-input v-model="kp.name" size="small" class="kc-name" />
-        <span class="kc-source" :title="kp.source">📎 {{ kp.source }}</span>
-        <el-icon class="kc-del" @click="kpConfirmList.splice(i, 1)"><Delete /></el-icon>
-      </div>
-      <div class="kc-add" @click="kpConfirmList.push({ name: '', source: '人工添加' })">+ 手动添加知识点</div>
-      <template #footer>
-        <el-button @click="showKpConfirm = false">取消</el-button>
-        <el-button type="primary" :disabled="!kpConfirmList.filter(k => k.name.trim()).length" @click="confirmKps">
-          确认 {{ kpConfirmList.filter(k => k.name.trim()).length }} 个知识点
-        </el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
-import { ElMessage } from 'element-plus'
 import { useAppStore } from '../store'
-import { simulateMaterialParse } from '../services/ai'
+import KnowledgeLibrary from '../components/KnowledgeLibrary.vue'
 import AcademicPortraitCard from '../components/AcademicPortraitCard.vue'
+import CompetitionCatalog from '../components/CompetitionCatalog.vue'
 
 const store = useAppStore()
 
 const currentSub = ref('overview')
-const showUpload = ref(false)
-const uploadFile = ref(null)
-const parsing = ref(false)
-const parseErrors = ref([])
-const showKpConfirm = ref(false)
-const kpConfirmList = ref([])
-const kpConfirmCourseId = ref('course_001')
-
-function pickUpload() {
-  uploadFile.value?.click()
-}
-
+const competitionTab = ref('catalog')
 const entries = [
   { key: 'overview', label: '画像', emoji: '🪪', color: '#1E88E5' },
   { key: 'competition', label: '竞赛', emoji: '🏆', color: '#FF9800' },
@@ -320,89 +252,6 @@ function memoryLabel(type) {
   return map[type] || '其他'
 }
 
-function docEmoji(type) {
-  const map = { PPT: '📊', PDF: '📄', 笔记: '📝', 教材: '📖', 论文: '📄' }
-  return map[type] || '📄'
-}
-
-/** 上传 → 解析(B2)：校验限制 → 提取知识点 → 人工确认 → 进入计划 */
-async function onUploadFile(e) {
-  const files = Array.from(e.target.files || [])
-  if (!files.length) return
-  parseErrors.value = []
-  const MAX = 10 * 1024 * 1024
-  const validFiles = []
-  for (const f of files) {
-    if (f.size === 0) {
-      parseErrors.value.push(`「${f.name}」是空文件，已跳过`)
-    } else if (f.size > MAX) {
-      parseErrors.value.push(`「${f.name}」超过 10MB 限制，已跳过`)
-    } else if (!/\.(pdf|ppt|pptx|doc|docx|txt|md)$/i.test(f.name)) {
-      parseErrors.value.push(`「${f.name}」格式不支持（支持 PDF/PPT/Word/文本），已跳过`)
-    } else {
-      validFiles.push(f)
-    }
-  }
-  if (!validFiles.length) return
-
-  // 解析进度
-  parsing.value = true
-  const allKps = []
-  const docInfos = []
-  for (const f of validFiles) {
-    // 模拟异步解析(后端在线时调用真实大模型解析)
-    await new Promise(r => setTimeout(r, 700))
-    try {
-      const result = simulateMaterialParse(f.name, f.size)
-      ElMessage.warning('当前为演示解析：知识点来自文件名示例，未读取文件内容。')
-      allKps.push(...result.kps)
-      const ext = f.name.split('.').pop().toLowerCase()
-      const typeMap = { pdf: 'PDF', ppt: 'PPT', pptx: 'PPT', doc: '笔记', docx: '笔记', txt: '笔记', md: '笔记' }
-      docInfos.push({ file: f, type: typeMap[ext] || '其他', result })
-    } catch (err) {
-      parseErrors.value.push(`「${f.name}」解析失败：${err.message || '未知错误'}`)
-    }
-  }
-  parsing.value = false
-  showUpload.value = false
-
-  if (!allKps.length) {
-    ElMessage.error('解析失败，请检查文件后重试')
-    return
-  }
-
-  // 解析结果 → 人工确认弹窗
-  kpConfirmList.value = allKps
-  const lowerName = validFiles[0].name.toLowerCase()
-  if (lowerName.includes('算法')) kpConfirmCourseId.value = 'course_002'
-  else if (lowerName.includes('机器') || lowerName.includes('machine')) kpConfirmCourseId.value = 'course_005'
-  else kpConfirmCourseId.value = 'course_001'
-  pendingDocs.value = docInfos
-  showKpConfirm.value = true
-}
-
-const pendingDocs = ref([])
-
-/** 确认知识点：写入知识库 + 课程知识点表(可追溯来源) */
-function confirmKps() {
-  const kps = kpConfirmList.value.filter(k => k.name.trim())
-  if (!kps.length) return
-  store.addKnowledgePoints(kpConfirmCourseId.value, kps.map(k => ({ name: k.name.trim(), source: k.source })))
-  for (const d of pendingDocs.value) {
-    const course = store.courses.find(c => c.id === kpConfirmCourseId.value)
-    store.addKnowledgeDoc({
-      title: d.file.name,
-      type: d.type,
-      courseName: course?.name || '',
-      summary: d.result.summary,
-      chunks: d.result.chunks
-    })
-  }
-  showKpConfirm.value = false
-  kpConfirmList.value = []
-  pendingDocs.value = []
-  ElMessage.success(`已确认 ${kps.length} 个知识点并加入学习计划流程`)
-}
 </script>
 
 <style scoped>
@@ -440,9 +289,10 @@ function confirmKps() {
 }
 
 .qe-icon {
-  font-size: 18px;
+  font-size: calc(1.125rem * var(--font-scale));
   opacity: 0.4;
   transition: opacity 0.2s;
+  line-height: 31.68px;
 }
 
 .quick-entry.active .qe-icon {
@@ -450,8 +300,9 @@ function confirmKps() {
 }
 
 .qe-label {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--text-secondary);
+  line-height: 22.88px;
 }
 
 .quick-entry.active .qe-label {
@@ -459,10 +310,11 @@ function confirmKps() {
 }
 
 .sub-title {
-  font-size: 18px;
+  font-size: calc(1.125rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
   margin-bottom: 12px;
+  line-height: 31.68px;
 }
 
 .sub-title-row {
@@ -501,8 +353,9 @@ function confirmKps() {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: calc(1.125rem * var(--font-scale));
   flex-shrink: 0;
+  line-height: 31.68px;
 }
 
 .mem-body {
@@ -511,9 +364,9 @@ function confirmKps() {
 }
 
 .mem-content {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--text-primary);
-  line-height: 1.5;
+  line-height: 21.45px;
 }
 
 .mem-meta {
@@ -524,8 +377,9 @@ function confirmKps() {
 }
 
 .mem-star {
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 17.6px;
 }
 
 .goal-item {
@@ -545,9 +399,10 @@ function confirmKps() {
 }
 
 .goal-name {
-  font-size: 14px;
+  font-size: calc(0.875rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
+  line-height: 24.64px;
 }
 
 .goal-match {
@@ -558,20 +413,23 @@ function confirmKps() {
 }
 
 .gm-text {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 19.36px;
 }
 
 .goal-gap {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--warning);
   margin-top: 4px;
+  line-height: 19.36px;
 }
 
 .path-title {
-  font-size: 14px;
+  font-size: calc(0.875rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
+  line-height: 24.64px;
 }
 
 .path-row {
@@ -586,8 +444,9 @@ function confirmKps() {
 }
 
 .path-arrow {
-  font-size: 16px;
+  font-size: calc(1rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 28.16px;
 }
 
 .comp-card {
@@ -603,15 +462,17 @@ function confirmKps() {
 }
 
 .comp-name {
-  font-size: 15px;
+  font-size: calc(0.9375rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
+  line-height: 26.4px;
 }
 
 .comp-meta {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-hint);
   margin-top: 2px;
+  line-height: 21.12px;
 }
 
 .comp-score {
@@ -619,26 +480,30 @@ function confirmKps() {
 }
 
 .cs-v {
-  font-size: 18px;
+  font-size: calc(1.125rem * var(--font-scale));
   font-weight: bold;
+  line-height: 31.68px;
 }
 
 .cs-k {
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 17.6px;
 }
 
 .comp-desc {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--text-secondary);
   margin-top: 8px;
   flex: 1;
+  line-height: 22.88px;
 }
 
 .comp-gap {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--warning);
   margin-top: 6px;
+  line-height: 21.12px;
 }
 
 .comp-foot {
@@ -649,8 +514,9 @@ function confirmKps() {
 }
 
 .comp-deadline {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 19.36px;
 }
 
 .career-head {
@@ -660,9 +526,10 @@ function confirmKps() {
 }
 
 .career-name {
-  font-size: 16px;
+  font-size: calc(1rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
+  line-height: 28.16px;
 }
 
 .career-reqs {
@@ -673,9 +540,9 @@ function confirmKps() {
 }
 
 .req-item {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--text-secondary);
-  line-height: 1.8;
+  line-height: 25.74px;
 }
 
 .career-actions {
@@ -683,72 +550,17 @@ function confirmKps() {
 }
 
 .ca-title {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   font-weight: 600;
   color: var(--secondary);
+  line-height: 21.12px;
 }
 
 .ca-item {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--text-primary);
   margin-top: 3px;
-}
-
-.doc-card {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.doc-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  flex-shrink: 0;
-}
-
-.doc-body {
-  flex: 1;
-  min-width: 0;
-}
-
-.doc-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.doc-meta {
-  font-size: 11px;
-  color: var(--text-hint);
-  margin-top: 2px;
-}
-
-.doc-summary {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-top: 3px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.doc-arrow {
-  color: var(--text-hint);
-  font-size: 18px;
-}
-
-.search-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 16px;
-  color: var(--text-hint);
-  max-width: 560px;
+  line-height: 22.88px;
 }
 
 .train-card {
@@ -756,8 +568,9 @@ function confirmKps() {
 }
 
 .train-info {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--text-secondary);
+  line-height: 22.88px;
 }
 
 .train-stats {
@@ -775,15 +588,17 @@ function confirmKps() {
 }
 
 .ts-v {
-  font-size: 18px;
+  font-size: calc(1.125rem * var(--font-scale));
   font-weight: bold;
   color: var(--primary);
+  line-height: 31.68px;
 }
 
 .ts-k {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
   margin-top: 2px;
+  line-height: 19.36px;
 }
 
 .train-reqs {
@@ -794,16 +609,17 @@ function confirmKps() {
 }
 
 .tr-title {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 4px;
+  line-height: 21.12px;
 }
 
 .tr-item {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-secondary);
-  line-height: 1.8;
+  line-height: 23.76px;
 }
 
 .course-row {
@@ -819,122 +635,38 @@ function confirmKps() {
 }
 
 .course-name {
-  font-size: 15px;
+  font-size: calc(0.9375rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
+  line-height: 26.4px;
 }
 
 .course-credit {
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   color: var(--text-hint);
   margin-left: auto;
+  line-height: 17.6px;
 }
 
 .course-meta {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-secondary);
+  line-height: 21.12px;
 }
 
 .course-desc {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-hint);
-  line-height: 1.6;
+  line-height: 21.12px;
 }
 
 .mem-desc {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--text-secondary);
   margin-bottom: 14px;
-  line-height: 1.6;
+  line-height: 22.88px;
 }
 
-.dialog-hint {
-  font-size: 12px;
-  color: var(--text-hint);
-}
-
-.upload-zone {
-  margin-top: 10px;
-  height: 140px;
-  border: 1.5px dashed var(--divider);
-  border-radius: 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  cursor: pointer;
-}
-
-.parse-progress {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 10px;
-  font-size: 12px;
-  color: var(--primary);
-}
-
-.pp-text {
-  color: var(--text-secondary);
-}
-
-.parse-errors {
-  margin-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.pe-item {
-  font-size: 11px;
-  color: var(--error);
-}
-
-.kc-course-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 12px 0;
-}
-
-.kc-label {
-  font-size: 13px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
-.kc-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.kc-name {
-  flex: 1;
-}
-
-.kc-source {
-  font-size: 10px;
-  color: var(--text-hint);
-  max-width: 180px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.kc-del {
-  cursor: pointer;
-  color: var(--error);
-}
-
-.kc-add {
-  font-size: 12px;
-  color: var(--primary);
-  cursor: pointer;
-  padding: 6px 0;
-}
 .quick-entries { overflow-x: auto; }
 .quick-entry { flex-shrink: 0; white-space: nowrap; }
 @media (max-width: 600px) {

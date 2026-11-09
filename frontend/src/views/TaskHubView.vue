@@ -83,7 +83,7 @@
             <div v-if="!filteredTasks.length" class="empty-state card">
               <span class="icon">✅</span>
               <span>没有筛选结果</span>
-              <span style="font-size: 11px">当前筛选条件下没有任务</span>
+              <span style="font-size: calc(0.6875rem * var(--font-scale)); line-height: 19.36px">当前筛选条件下没有任务</span>
             </div>
           </div>
         </div>
@@ -128,51 +128,102 @@
       </div>
     </template>
 
-    <!-- ============ 添加任务弹窗(AI解析) ============ -->
-    <el-dialog v-model="showAddTask" title="添加新任务" width="88%" align-center>
-      <div class="dialog-hint">输入或粘贴任务描述，AI 将自动识别任务信息</div>
-      <el-input
-        v-model="addTaskText"
-        type="textarea"
-        :rows="4"
-        placeholder="例如：下周一下午5点前交数据结构实验报告，第三章的课后题"
-        style="margin-top: 10px"
-      />
-      <div v-if="parsePreview" class="parse-preview">
-        <div class="pp-title">🤖 AI 识别结果：</div>
-        <div class="pp-line">优先级：<b>{{ parsePreview.priority }}</b></div>
-        <div class="pp-line">分类：<b>{{ parsePreview.category }}</b></div>
-        <div class="pp-line">截止时间：<b>{{ parsePreview.deadline }}</b></div>
-        <div class="pp-line">预计耗时：<b>{{ Math.floor(parsePreview.estimatedDuration / 60) }}小时{{ parsePreview.estimatedDuration % 60 }}分钟</b></div>
+    <!-- ============ 添加任务弹窗 ============ -->
+    <el-dialog v-model="showAddTask" title="添加新任务" width="min(88%, 680px)" align-center>
+      <el-form :model="taskForm" label-position="top" @submit.prevent="createTask">
+        <el-form-item label="任务名称" required>
+          <el-input v-model="taskForm.title" placeholder="例如：完成数据结构实验报告" aria-label="任务名称" />
+        </el-form-item>
+        <el-form-item label="任务截止时间" required>
+          <el-date-picker v-model="taskForm.deadline" type="datetime" value-format="YYYY-MM-DD HH:mm"
+            format="YYYY-MM-DD HH:mm" placeholder="选择截止日期和时间" aria-label="任务截止时间" style="width: 100%" />
+        </el-form-item>
+        <el-form-item required>
+          <template #label><span>任务内容</span><span class="content-count">{{ taskForm.contents.length }}/10</span></template>
+          <div class="task-content-list">
+            <div v-for="(_, index) in taskForm.contents" :key="index" class="task-content-row">
+              <el-input v-model="taskForm.contents[index]" type="textarea" :autosize="{ minRows: 2, maxRows: 5 }"
+                :placeholder="`填写第${index + 1}项任务内容`" :aria-label="`任务内容${index + 1}`" />
+              <div class="content-actions">
+                <el-button circle :disabled="taskForm.contents.length >= 10" :aria-label="`在第${index + 1}项后增加内容`" @click="addTaskContent(index)">
+                  <el-icon><Plus /></el-icon>
+                </el-button>
+                <el-button v-if="taskForm.contents.length > 1" circle :aria-label="`删除第${index + 1}项内容`" @click="removeTaskContent(index)">
+                  <el-icon><Minus /></el-icon>
+                </el-button>
+              </div>
+            </div>
+          </div>
+        </el-form-item>
+      </el-form>
+      <div class="priority-preview">
+        <div>紧急程度：<b>{{ taskForm.deadline ? taskPriority : '选择截止时间后自动计算' }}</b></div>
+        <div class="dialog-hint">≤1天：紧急 · ≤3天：高 · ≤7天：中 · &gt;7天：低（1天为24小时）</div>
+        <div class="dialog-hint">每项内容将保存为可勾选的子任务，最多10项。</div>
       </div>
       <template #footer>
         <el-button @click="showAddTask = false">取消</el-button>
-        <el-button type="primary" @click="createTaskFromText">AI 解析创建</el-button>
+        <el-button type="primary" @click="createTask">创建任务</el-button>
       </template>
     </el-dialog>
 
     <!-- ============ OCR 识别弹窗 ============ -->
-    <el-dialog v-model="showOcr" title="OCR 智能识别" width="88%" align-center>
-      <div class="dialog-hint">上传课程/任务截图（QQ、微信、雨课堂等），AI 自动提取任务信息</div>
-      <div class="ocr-upload" @click="pickUpload">
-        <input ref="uploadFile" type="file" accept="image/*" hidden @change="onOcrFile" />
-        <div v-if="!ocrProcessing && !ocrResult" class="ocr-placeholder">
-          <div class="op-icon">📷</div>
-          <div class="op-text">点击选择截图文件</div>
-          <div class="op-sub">支持 jpg / png，后端在线时调用大模型识别</div>
-        </div>
-        <div v-else-if="ocrProcessing" class="ocr-processing">
-          <el-icon class="is-loading" :size="30"><Loading /></el-icon>
-          <div class="op-text">AI 正在识别图片中的文字...</div>
-        </div>
-        <div v-else class="ocr-result">
-          <pre class="or-text">{{ ocrResult.recognizedText }}</pre>
-        </div>
+    <el-dialog v-model="showOcr" title="OCR 智能识别" width="min(94%, 720px)" align-center>
+      <p class="dialog-hint">上传任务截图，核对识别原文和任务信息后再添加。支持 PNG、JPEG、WebP，最大 5 MiB。</p>
+      <input ref="uploadFile" type="file" accept="image/png,image/jpeg,image/webp" hidden @change="onOcrFile" />
+      <div class="ocr-controls">
+        <el-button :disabled="ocrProcessing" @click="uploadFile?.click()">{{ ocrFileName ? '更换截图' : '选择截图' }}</el-button>
+        <el-button v-if="ocrError && retryOcrFile" :disabled="ocrProcessing" @click="recognizeOcrFile(retryOcrFile)">重试</el-button>
+        <span v-if="ocrFileName" class="dialog-hint">{{ ocrFileName }}</span>
       </div>
+      <p v-if="ocrProcessing" class="dialog-hint" role="status">
+        <el-icon class="is-loading"><Loading /></el-icon> 正在识别图片…
+      </p>
+      <el-alert v-if="ocrError" :title="ocrError" type="error" :closable="false" show-icon />
+      <template v-if="ocrResult">
+        <el-alert v-if="!ocrResult.recognizedText.trim()" title="没有识别到可辨文字，请换一张更清晰的截图。"
+          type="warning" :closable="false" show-icon />
+        <div v-else class="ocr-preview">
+          <h3>识别原文</h3>
+          <pre class="or-text">{{ ocrResult.recognizedText }}</pre>
+          <el-alert v-if="!ocrTasks.length" title="已识别文字，未提取到明确的任务。你可以根据原文添加草稿。"
+            type="info" :closable="false" show-icon />
+          <section v-for="(task, index) in ocrTasks" :key="index" class="ocr-task">
+            <el-checkbox v-model="task.selected">创建任务 {{ index + 1 }}</el-checkbox>
+            <el-form :model="task" label-position="top" :disabled="!task.selected" @submit.prevent>
+              <el-form-item label="任务名称" required>
+                <el-input v-model="task.title" :aria-label="`任务 ${index + 1} 名称`" />
+              </el-form-item>
+              <el-form-item label="任务截止时间" required>
+                <el-date-picker v-model="task.deadline" type="datetime" value-format="YYYY-MM-DD HH:mm"
+                  format="YYYY-MM-DD HH:mm" placeholder="请选择日期和时间" :aria-label="`任务 ${index + 1} 截止时间`"
+                  style="width: 100%" />
+              </el-form-item>
+              <el-form-item label="任务内容" required>
+                <div class="task-content-list">
+                  <div v-for="(_, contentIndex) in task.contents" :key="contentIndex" class="task-content-row">
+                    <el-input v-model="task.contents[contentIndex]" type="textarea" :autosize="{ minRows: 2, maxRows: 5 }"
+                      :aria-label="`任务 ${index + 1} 内容 ${contentIndex + 1}`" />
+                    <div class="content-actions">
+                      <el-button circle :disabled="task.contents.length >= 10" aria-label="增加任务内容"
+                        @click="addTaskContent(contentIndex, task)"><el-icon><Plus /></el-icon></el-button>
+                      <el-button v-if="task.contents.length > 1" circle aria-label="删除这项任务内容"
+                        @click="removeTaskContent(contentIndex, task)"><el-icon><Minus /></el-icon></el-button>
+                    </div>
+                  </div>
+                </div>
+              </el-form-item>
+            </el-form>
+            <p v-if="task.selected && taskFormError(task)" class="ocr-task-note">{{ taskFormError(task) }}</p>
+            <p v-else-if="task.selected" class="dialog-hint">紧急程度 {{ getTaskPriority(task.deadline, store.taskPriorityNow) }}</p>
+          </section>
+          <el-button plain type="primary" @click="addOcrDraft">添加任务草稿</el-button>
+        </div>
+      </template>
       <template #footer>
         <el-button @click="showOcr = false">取消</el-button>
-        <el-button type="primary" :disabled="!ocrResult || creatingOcrTasks" @click="createOcrTasks">
-          创建 {{ ocrResult?.tasks?.length || 0 }} 个任务
+        <el-button type="primary" :disabled="!canCreateOcrTasks" @click="createOcrTasks">
+          创建 {{ selectedOcrTasks.length }} 个任务
         </el-button>
       </template>
     </el-dialog>
@@ -188,12 +239,11 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import { ref, reactive, computed, watch, nextTick, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAppStore } from '../store'
-import { todayStr, nowStr, formatDateCN, generateId } from '../constants'
-import { parseTaskFromText } from '../services/ai'
+import { todayStr, nowStr, formatDateCN, generateId, getTaskPriority, taskDeadlineTime } from '../constants'
 import { chatWithAI, ocrRecognize } from '../services/api'
 import TaskCard from '../components/TaskCard.vue'
 import ChatBubble from '../components/ChatBubble.vue'
@@ -209,11 +259,18 @@ const inputText = ref('')
 const chatBodyRef = ref(null)
 const activeFilter = ref('全部')
 const showAddTask = ref(false)
-const addTaskText = ref('')
+const taskForm = reactive({ title: '', deadline: '', contents: [''] })
 const showOcr = ref(false)
 const ocrProcessing = ref(false)
 const ocrResult = ref(null)
-const creatingOcrTasks = ref(false)
+const ocrTasks = ref([])
+const ocrError = ref('')
+const ocrFileName = ref('')
+const retryOcrFile = ref(null)
+const selectedOcrTasks = computed(() => ocrTasks.value.filter(task => task.selected))
+const canCreateOcrTasks = computed(() => !ocrProcessing.value && selectedOcrTasks.value.length > 0 &&
+  selectedOcrTasks.value.every(task => !taskFormError(task)))
+let ocrRequest
 const showHistory = ref(false)
 const showSuggestions = ref(false)
 const uploadFile = ref(null)
@@ -235,14 +292,11 @@ const filteredTasks = computed(() => {
   if (activeFilter.value === '全部') return tasks
   if (activeFilter.value === '待完成') return tasks.filter(t => t.status !== '已完成')
   if (activeFilter.value === '已完成') return tasks.filter(t => t.status === '已完成')
-  if (activeFilter.value === '紧急') return tasks.filter(t => t.priority === '紧急' || t.priority === '高')
+  if (activeFilter.value === '紧急') return tasks.filter(t => t.priority === '紧急')
   return tasks
 })
 
-const parsePreview = computed(() => {
-  if (!addTaskText.value.trim()) return null
-  return parseTaskFromText(addTaskText.value)
-})
+const taskPriority = computed(() => getTaskPriority(taskForm.deadline, store.taskPriorityNow))
 
 onMounted(() => {
   // 顶栏 AI助手 入口 → 直接进入对话模式
@@ -258,6 +312,18 @@ watch(isChatMode, async (v) => {
     scrollChatToBottom()
   }
 })
+
+watch(showOcr, visible => {
+  if (visible) return
+  ocrRequest?.abort()
+  ocrRequest = undefined
+  ocrProcessing.value = false
+  ocrResult.value = null
+  ocrTasks.value = []
+  ocrError.value = ''
+  ocrFileName.value = ''
+  retryOcrFile.value = null
+}, { flush: 'sync' })
 
 function scrollChatToBottom() {
   if (chatBodyRef.value) chatBodyRef.value.scrollTop = chatBodyRef.value.scrollHeight
@@ -313,55 +379,110 @@ function onVoice() {
   }
 }
 
-function createTaskFromText() {
-  if (!addTaskText.value.trim()) return
-  const parsed = parseTaskFromText(addTaskText.value)
-  store.addTask({ ...parsed, id: undefined, createdAt: undefined, updatedAt: undefined })
+function addTaskContent(index, form = taskForm) {
+  if (form.contents.length >= 10) return
+  form.contents.splice(index + 1, 0, '')
+}
+
+function removeTaskContent(index, form = taskForm) {
+  if (form.contents.length <= 1) return
+  form.contents.splice(index, 1)
+}
+
+function taskFormError(form) {
+  if (!form.title.trim()) return '请填写任务名称'
+  if (!Number.isFinite(taskDeadlineTime(form.deadline))) return '请选择有效的任务截止时间'
+  if (!form.contents.length || form.contents.length > 10 || form.contents.some(content => !content.trim())) {
+    return '请填写每项任务内容，最多10项；多余空框可点击减号删除'
+  }
+  return ''
+}
+
+function saveTaskForm(form, source, tags) {
+  const contents = form.contents.map(content => content.trim())
+  store.addTask({
+    title: form.title.trim(),
+    deadline: form.deadline,
+    description: contents.join('\n'),
+    source,
+    category: '其他',
+    priority: getTaskPriority(form.deadline),
+    status: '待完成',
+    estimatedDuration: 60,
+    attachments: [],
+    tags,
+    subTasks: contents.map(content => ({ id: generateId(), title: content, completed: false }))
+  })
+}
+
+function createTask() {
+  const error = taskFormError(taskForm)
+  if (error) return ElMessage.warning(error)
+  saveTaskForm(taskForm, '手动添加', [])
   showAddTask.value = false
-  addTaskText.value = ''
+  Object.assign(taskForm, { title: '', deadline: '', contents: [''] })
   ElMessage.success('任务已添加 ✓')
 }
 
-function pickUpload() {
-  uploadFile.value?.click()
+function onOcrFile(e) {
+  const file = e.target.files[0]
+  e.target.value = ''
+  if (file) return recognizeOcrFile(file)
 }
 
-async function onOcrFile(e) {
-  const file = e.target.files[0]
-  if (!file) return
-  ocrProcessing.value = true
+async function recognizeOcrFile(file) {
+  if (ocrProcessing.value) return
   ocrResult.value = null
+  ocrTasks.value = []
+  ocrError.value = ''
+  ocrFileName.value = file.name
+  retryOcrFile.value = null
+  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+    ocrError.value = '图片格式不受支持，请选择 PNG、JPEG 或 WebP。'
+  } else if (file.size > 5 * 1024 * 1024) {
+    ocrError.value = '图片超过 5 MiB，请缩小图片后重试。'
+  } else if (!file.size) {
+    ocrError.value = '图片文件为空，请重新选择文件。'
+  }
+  if (ocrError.value) return
+
+  retryOcrFile.value = file
+  const request = new AbortController()
+  ocrRequest = request
+  ocrProcessing.value = true
   try {
-    const result = await ocrRecognize(file, file.name)
+    const result = await ocrRecognize(file, request.signal)
+    if (request.signal.aborted) return
     ocrResult.value = result
+    ocrTasks.value = result.recognizedText.trim() ? result.tasks.map(task => ({
+      title: task.title,
+      deadline: task.deadline,
+      contents: task.contents.length ? [...task.contents] : [''],
+      selected: true
+    })) : []
+  } catch (error) {
+    if (!request.signal.aborted) ocrError.value = error.message
   } finally {
-    ocrProcessing.value = false
+    if (ocrRequest === request) {
+      ocrRequest = undefined
+      ocrProcessing.value = false
+    }
   }
 }
 
 function createOcrTasks() {
-  if (!ocrResult.value) return
-  creatingOcrTasks.value = true
-  const count = (ocrResult.value.tasks || []).length
-  for (const t of ocrResult.value.tasks || []) {
-    store.addTask({
-      title: t.title,
-      description: `来自截图识别：${t.title}`,
-      source: 'OCR识别',
-      category: t.category || '作业',
-      priority: t.priority || '中',
-      status: '待完成',
-      deadline: t.deadline || `${todayStr()} 23:59`,
-      estimatedDuration: 60,
-      attachments: [],
-      subTasks: [],
-      tags: ['OCR']
-    })
+  if (!canCreateOcrTasks.value) return
+  const tasks = selectedOcrTasks.value
+  for (const task of tasks) {
+    saveTaskForm(task, 'OCR识别', ['OCR'])
   }
-  creatingOcrTasks.value = false
   showOcr.value = false
-  ocrResult.value = null
-  ElMessage.success(`已创建 ${count} 个任务 ✓`)
+  activeFilter.value = '全部'
+  ElMessage.success(`已创建 ${tasks.length} 个任务 ✓`)
+}
+
+function addOcrDraft() {
+  ocrTasks.value.push({ title: '', deadline: '', contents: [''], selected: true })
 }
 
 function onFocusTask(task) {
@@ -386,15 +507,17 @@ function onFocusTask(task) {
 }
 
 .tb-t {
-  font-size: 18px;
+  font-size: calc(1.125rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
+  line-height: 31.68px;
 }
 
 .tb-sub {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-hint);
   margin-left: 10px;
+  line-height: 21.12px;
 }
 
 .tb-actions {
@@ -415,8 +538,9 @@ function onFocusTask(task) {
 }
 
 .agenda-bulb {
-  font-size: 20px;
+  font-size: calc(1.25rem * var(--font-scale));
   cursor: pointer;
+  line-height: 35.2px;
 }
 
 .agenda-block {
@@ -429,98 +553,95 @@ function onFocusTask(task) {
 }
 
 .ag-title {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 6px;
+  line-height: 21.12px;
 }
 
 .ag-item {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-primary);
-  line-height: 1.9;
+  line-height: 25.08px;
 }
 
 .ag-meta {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 19.36px;
 }
 
 .ai-suggestions-card .as-item {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-secondary);
-  line-height: 1.7;
+  line-height: 22.44px;
   padding: 4px 0;
 }
 
 .dialog-hint {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 21.12px;
 }
 
-.parse-preview {
+.priority-preview {
   margin-top: 10px;
   background: var(--bg-primary);
   border-radius: 8px;
   padding: 10px;
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-secondary);
+  line-height: 21.12px;
 }
 
-.pp-title {
-  font-weight: bold;
-  color: var(--primary);
-  margin-bottom: 4px;
+.priority-preview .dialog-hint {
+  margin-top: 6px;
 }
 
-.pp-line {
-  line-height: 1.8;
-}
-
-.ocr-upload {
-  margin-top: 10px;
-  min-height: 160px;
-  border: 1.5px dashed var(--divider);
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  padding: 16px;
-}
-
-.ocr-placeholder,
-.ocr-processing {
-  text-align: center;
+.task-content-list {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.op-icon {
-  font-size: 36px;
-}
-
-.op-text {
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.op-sub {
-  font-size: 11px;
-  color: var(--text-hint);
-}
-
-.ocr-result {
+  gap: 12px;
   width: 100%;
 }
 
+.task-content-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.task-content-row > .el-textarea { flex: 1; min-width: 0; }
+.content-actions { display: flex; flex-direction: column; gap: 6px; }
+.content-actions .el-button + .el-button { margin-left: 0; }
+.content-count { margin-left: 8px; color: var(--text-secondary); font-size: calc(0.75rem * var(--font-scale)); line-height: 21.12px; }
+
+.ocr-controls {
+  margin: 12px 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.ocr-controls .el-button + .el-button { margin-left: 0; }
+.ocr-controls span { overflow-wrap: anywhere; }
+.ocr-preview { max-height: 48dvh; overflow-y: auto; padding-inline-end: 6px; }
+.ocr-preview h3 { margin: 8px 0; font-size: inherit; }
+.ocr-task {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--divider);
+  border-radius: 10px;
+}
+.ocr-task-note { margin: 0; color: var(--el-color-danger); }
+
 .or-text {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-primary);
   white-space: pre-wrap;
-  line-height: 1.6;
+  overflow-wrap: anywhere;
+  line-height: 21.12px;
   font-family: inherit;
 }
 
@@ -552,9 +673,10 @@ function onFocusTask(task) {
 }
 
 .back {
-  font-size: 26px;
+  font-size: calc(1.625rem * var(--font-scale));
   cursor: pointer;
   color: var(--text-primary);
+  line-height: 45.76px;
 }
 
 .chat-title {
@@ -562,21 +684,24 @@ function onFocusTask(task) {
 }
 
 .ct-name {
-  font-size: 16px;
+  font-size: calc(1rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
+  line-height: 28.16px;
 }
 
 .ct-state {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 19.36px;
 }
 
 .chat-more {
-  font-size: 18px;
+  font-size: calc(1.125rem * var(--font-scale));
   cursor: pointer;
   color: var(--text-secondary);
   padding: 4px 8px;
+  line-height: 31.68px;
 }
 
 .chat-body {
@@ -606,8 +731,9 @@ function onFocusTask(task) {
 }
 
 .thinking-text {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 21.12px;
 }
 
 .chat-input {
@@ -624,8 +750,9 @@ function onFocusTask(task) {
 }
 
 .ci-icon {
-  font-size: 20px;
+  font-size: calc(1.25rem * var(--font-scale));
   cursor: pointer;
   color: var(--text-secondary);
+  line-height: 35.2px;
 }
 </style>

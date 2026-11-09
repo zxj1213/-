@@ -4,22 +4,13 @@
  * 本文件为规则算法部分；当 FastAPI 后端 + 大模型 API 可用时，
  * api.js 会优先调用真实大模型，失败时自动降级到本规则引擎。
  */
-import { todayStr, nowStr, relativeTime, generateId } from '../constants'
+import { todayStr, nowStr, relativeTime, generateId, getTaskPriority } from '../constants'
 
 /** 对话式任务解析：从自然语言中提取任务信息 */
 export function parseTaskFromText(text) {
-  let priority = '中'
   let category = '作业'
   let estimatedDuration = 60
   let deadline = `${todayStr()} 23:59`
-
-  if (/紧急|马上|立刻|尽快|来不及|截止今晚|明天截止/.test(text)) {
-    priority = '紧急'
-  } else if (/重要|优先|重点/.test(text)) {
-    priority = '高'
-  } else if (/有空|不急|随便|阅读|看完/.test(text)) {
-    priority = '低'
-  }
 
   if (/考试|复习|备考|四级|六级/.test(text)) category = '考试'
   else if (/项目|开发|小程序|代码/.test(text)) category = '项目'
@@ -63,7 +54,7 @@ export function parseTaskFromText(text) {
     description: text,
     source: 'AI解析',
     category,
-    priority,
+    priority: getTaskPriority(deadline),
     status: '待完成',
     deadline,
     estimatedDuration,

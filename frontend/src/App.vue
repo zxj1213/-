@@ -1,6 +1,7 @@
 <template>
   <!-- 未登录：登录/注册页(账号数据按用户隔离) -->
-  <LoginView v-if="!isLoggedIn" />
+  <div v-if="restoringSession" class="session-loading" role="status">正在恢复登录状态…</div>
+  <LoginView v-else-if="!isLoggedIn" />
 
   <div v-else class="stage">
     <div class="app-shell">
@@ -17,7 +18,7 @@
             <span>✨</span> AI助手
           </button>
           <div class="header-user" @click="goMe">
-            <span class="avatar">👤</span>
+            <span class="avatar"><img v-if="store.userInfo?.avatar" :src="store.userInfo.avatar" alt="" /><template v-else>👤</template></span>
             <span class="name">{{ store.userInfo?.name || '同学' }}</span>
           </div>
         </div>
@@ -40,9 +41,9 @@
           <div class="sidebar-spacer"></div>
 
           <div class="sidebar-user" @click="goMe">
-            <span class="avatar">👤</span>
+            <span class="avatar"><img v-if="store.userInfo?.avatar" :src="store.userInfo.avatar" alt="" /><template v-else>👤</template></span>
             <div class="info">
-              <div class="name">{{ store.currentUserName || store.userInfo?.name || '同学' }}</div>
+              <div class="name">{{ store.userInfo?.name || store.currentUserName || '同学' }}</div>
               <div class="school">{{ store.userInfo?.school }} · {{ store.userInfo?.major }}</div>
             </div>
           </div>
@@ -59,11 +60,13 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import { TABS, TabMeta } from './constants'
 import { useAppStore } from './store'
 import LoginView from './views/LoginView.vue'
+import { getAccountProfile, refreshSession, setSessionAccount, setSessionExpiredHandler } from './services/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -73,6 +76,64 @@ const tabs = TABS
 const currentTitle = computed(() => route.meta?.title || '学迹')
 
 const isLoggedIn = computed(() => !!store.currentUserId)
+const savedAccount = store.authState?.serverAccountId
+const restoringSession = ref(!!savedAccount)
+setSessionAccount(savedAccount || null)
+setSessionExpiredHandler(owner => {
+  if (store.authState?.serverAccountId !== owner) return
+  store.logout()
+  ElMessage.warning('登录已过期，请重新登录')
+})
+if (savedAccount) {
+  refreshSession().catch(() => {}).finally(() => { restoringSession.value = false })
+}
+
+let profileRequest
+async function syncProfile() {
+  const owner = store.authState?.serverAccountId
+  if (!owner || restoringSession.value || document.hidden || profileRequest === owner) return
+  profileRequest = owner
+  try {
+    const profile = await getAccountProfile(store.userInfo?.profileVersion, !!store.userInfo?.accountIdentifier)
+    store.applyAccountProfile(profile)
+  } catch {
+    // Preserve the cached profile while disconnected.
+  } finally {
+    if (profileRequest === owner) profileRequest = undefined
+  }
+}
+watch([() => store.authState?.serverAccountId, restoringSession], syncProfile, { immediate: true })
+
+let priorityInterval
+let profileInterval
+let systemTheme
+function refreshPriorities() {
+  store.refreshTaskPriorities()
+}
+function followSystemTheme() {
+  if (store.settings?.theme === 'auto') store.applyTheme()
+}
+onMounted(() => {
+  refreshPriorities()
+  priorityInterval = setInterval(refreshPriorities, 1000)
+  profileInterval = setInterval(syncProfile, 8000)
+  window.addEventListener('focus', syncProfile)
+  document.addEventListener('visibilitychange', syncProfile)
+  window.addEventListener('focus', refreshPriorities)
+  document.addEventListener('visibilitychange', refreshPriorities)
+  systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
+  systemTheme.addEventListener('change', followSystemTheme)
+})
+onUnmounted(() => {
+  setSessionExpiredHandler(null)
+  clearInterval(priorityInterval)
+  clearInterval(profileInterval)
+  window.removeEventListener('focus', syncProfile)
+  document.removeEventListener('visibilitychange', syncProfile)
+  window.removeEventListener('focus', refreshPriorities)
+  document.removeEventListener('visibilitychange', refreshPriorities)
+  systemTheme?.removeEventListener('change', followSystemTheme)
+})
 
 function goTab(path) {
   if (route.path !== path) router.push(path)
@@ -90,3 +151,7 @@ function goMe() {
   router.push('/me')
 }
 </script>
+
+<style scoped>
+.avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+</style>

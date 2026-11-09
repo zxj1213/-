@@ -25,12 +25,29 @@ function setup() {
     ...constants, ...adaptive, mock, defineStore, localStorage,
     setApiToken() {}, ElMessage: { error() {} },
     window: { matchMedia: () => ({ matches: false }) },
-    document: { documentElement: { classList: { toggle() {} }, setAttribute() {}, style: {} } }
+    document: { documentElement: { classList: { toggle() {} }, setAttribute() {}, style: { setProperty(key, value) { this[key] = value } } } }
   }
   vm.runInNewContext(`${source}\nthis.makeStore = () => useAppStore;`, ctx)
   const freshStore = () => ctx.makeStore()(createPinia())
-  return { store: freshStore(), freshStore, localStorage }
+  return { store: freshStore(), freshStore, localStorage, document: ctx.document }
 }
+
+test('binding a legacy account keeps its local identity and removes the local password hash', () => {
+  const { store, freshStore } = setup()
+  store.login('迁移同学', 'old-password')
+  const oldId = store.currentUserId
+  store.updateProfile({ school: '武汉理工大学' })
+  store.connectServerAccount('迁移同学', 'a'.repeat(32))
+  assert.equal(store.currentUserId, oldId)
+  assert.equal(store.userInfo.school, '武汉理工大学')
+  assert.equal(store._readUsers()[0].hash, undefined)
+  assert.equal(store.authState.serverAccountId, 'a'.repeat(32))
+  assert.throws(() => store.connectServerAccount('迁移同学', 'b'.repeat(32)))
+  const restored = freshStore()
+  restored.init()
+  assert.equal(restored.authState.serverAccountId, 'a'.repeat(32))
+  assert.equal(restored.currentUserId, oldId)
+})
 
 test('registration links profile identity to account and starts with empty personal fields', () => {
   const { store } = setup()
@@ -77,6 +94,36 @@ test('switching accounts keeps personal fields isolated', () => {
   store.login('甲同学', 'pass1234')
   assert.equal(store.userInfo.name, '甲同学')
   assert.equal(store.userInfo.school, '甲学校')
+})
+
+test('changing the password persists for the same account and keeps its data', () => {
+  const { store, freshStore } = setup()
+  store.login('小林', 'old-pass')
+  const accountId = store.currentUserId
+  store.updateProfile({ school: '原学校' })
+
+  assert.equal(store.changePassword('old-pass', 'new-pass').ok, true)
+  const refreshed = freshStore()
+  refreshed.init()
+  assert.equal(refreshed.currentUserId, accountId)
+  assert.equal(refreshed.verifyLocalPassword('old-pass'), false)
+  assert.equal(refreshed.verifyLocalPassword('new-pass'), true)
+  refreshed.logout()
+  assert.equal(refreshed.login('小林', 'old-pass').ok, false)
+  assert.equal(refreshed.login('小林', 'new-pass').ok, true)
+  assert.equal(refreshed.userInfo.school, '原学校')
+})
+
+test('validation and storage failures leave the current password usable', () => {
+  const { store, localStorage } = setup()
+  store.login('小林', 'old-pass')
+  assert.equal(store.changePassword('wrong-pass', 'new-pass').ok, false)
+  assert.equal(store.changePassword('old-pass', '123').ok, false)
+  assert.equal(store.changePassword('old-pass', 'old-pass').ok, false)
+  localStorage.setItem = () => { throw new Error('Storage unavailable') }
+  assert.equal(store.changePassword('old-pass', 'new-pass').ok, false)
+  assert.equal(store.verifyLocalPassword('old-pass'), true)
+  assert.equal(store.verifyLocalPassword('new-pass'), false)
 })
 
 test('existing profiles are linked on refresh without losing school information', () => {
@@ -158,4 +205,59 @@ test('only the four offered grades can be saved', () => {
   const refreshed = freshStore()
   refreshed.init()
   assert.equal(refreshed.userInfo.grade, '大二')
+})
+
+test('task creation, restoration and live refresh use the same deadline priority rules', () => {
+  const { store, freshStore } = setup()
+  store.login('任务测试', 'pass1234')
+  const deadline = '2030-01-08 12:00'
+  const task = store.addTask({ title: '内容任务', deadline, priority: '紧急',
+    subTasks: [{ id: 's1', title: '内容1', completed: false }] })
+  assert.ok(task.id)
+  assert.ok(task.createdAt)
+  assert.equal(task.priority, '低')
+  const refreshed = freshStore()
+  refreshed.init()
+  const saved = refreshed.tasks.find(item => item.id === task.id)
+  assert.equal(saved.subTasks[0].title, '内容1')
+  for (const [now, priority] of [
+    ['2030-01-01T11:59:59', '低'], ['2030-01-01T12:00:00', '中'],
+    ['2030-01-05T12:00:00', '高'], ['2030-01-07T12:00:00', '紧急']
+  ]) {
+    refreshed.refreshTaskPriorities(new Date(now).getTime())
+    assert.equal(saved.priority, priority)
+  }
+  refreshed.toggleSubTask(task.id, 's1')
+  assert.equal(saved.status, '已完成')
+})
+
+test('theme choices and three font positions apply directly and survive refresh', () => {
+  const { store, freshStore, document } = setup()
+  store.login('外观设置测试', 'pass1234')
+  const component = read('../src/views/PersonalCenterView.vue')
+  const script = stripImports(component.match(/<script setup>([\s\S]*?)<\/script>/)[1])
+  const ctx = { ref, computed, reactive, watch, useAppStore: () => store,
+    defineProps: () => ({ section: 'settings' }), ElMessage: { success() {} }, ...constants }
+  vm.runInNewContext(`${script}\nthis.preferences = { selectTheme, showThemePicker, fontSizeStep };`, ctx)
+  const { selectTheme, showThemePicker, fontSizeStep } = ctx.preferences
+  for (const theme of ['dark', 'light', 'auto']) {
+    showThemePicker.value = true
+    selectTheme(theme)
+    assert.equal(store.settings.theme, theme)
+    assert.equal(showThemePicker.value, false)
+  }
+  selectTheme('invalid')
+  assert.equal(store.settings.theme, 'auto')
+  for (const [step, size] of [[2, 'large'], [0, 'small'], [1, 'medium']]) {
+    fontSizeStep.value = step
+    assert.equal(store.settings.fontSize, size)
+    assert.equal(fontSizeStep.value, step)
+    assert.equal(document.documentElement.style.fontSize, '16px')
+    assert.equal(document.documentElement.style['--font-scale'], { small: '0.92', medium: '1', large: '1.1' }[size])
+  }
+  fontSizeStep.value = 2
+  const refreshed = freshStore()
+  refreshed.init()
+  assert.equal(refreshed.settings.fontSize, 'large')
+  assert.equal(refreshed.settings.theme, 'auto')
 })

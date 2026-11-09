@@ -125,10 +125,10 @@ function formatDuration(min) {
 }
 
 .title {
-  font-size: 14px;
+  font-size: calc(0.875rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
-  line-height: 1.45;
+  line-height: 22.33px;
   flex: 1;
   min-width: 100%;
   margin-top: 4px;
@@ -148,9 +148,10 @@ function formatDuration(min) {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-secondary);
   margin-top: 8px;
+  line-height: 19.36px;
 }
 
 .subtasks {
@@ -164,9 +165,10 @@ function formatDuration(min) {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-secondary);
   padding: 2px 0;
+  line-height: 21.12px;
 }
 
 .sub-title {
@@ -181,12 +183,12 @@ function formatDuration(min) {
 
 .ai-summary {
   margin-top: 8px;
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--primary);
   background: rgba(30, 136, 229, 0.06);
   border-radius: 6px;
   padding: 6px 8px;
-  line-height: 1.5;
+  line-height: 19.8px;
 }
 
 .row-actions {

@@ -475,17 +475,19 @@ defineExpose({ setCourseAndTask })
 }
 
 .title {
-  font-size: 15px;
+  font-size: calc(0.9375rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
+  line-height: 26.4px;
 }
 
 .session-badge {
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   padding: 3px 8px;
   border-radius: 10px;
   background: #FF980015;
   color: #FF9800;
+  line-height: 17.6px;
 }
 
 .session-badge.running {
@@ -502,15 +504,17 @@ defineExpose({ setCourseAndTask })
 }
 
 .bind-label {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-secondary);
   white-space: nowrap;
+  line-height: 21.12px;
 }
 
 .opt-meta {
   float: right;
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 19.36px;
 }
 
 .kp-row {
@@ -521,14 +525,16 @@ defineExpose({ setCourseAndTask })
 }
 
 .kp-label {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-secondary);
   white-space: nowrap;
+  line-height: 21.12px;
 }
 
 .kp-chip {
   padding: 4px 10px;
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
+  line-height: 19.36px;
 }
 
 .ring-wrap {
@@ -554,8 +560,9 @@ defineExpose({ setCourseAndTask })
 }
 
 .timer-state {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 19.36px;
 }
 
 .timer-state.running {
@@ -563,12 +570,13 @@ defineExpose({ setCourseAndTask })
 }
 
 .timer-task {
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   color: var(--text-hint);
   max-width: 130px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 17.6px;
 }
 
 .durations {
@@ -605,9 +613,10 @@ defineExpose({ setCourseAndTask })
 }
 
 .duration-heading {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-primary);
   flex-wrap: wrap;
+  line-height: 21.12px;
 }
 
 .duration-input :deep(.el-input-number) {
@@ -616,8 +625,9 @@ defineExpose({ setCourseAndTask })
 
 .duration-scale,
 .duration-hint {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-secondary);
+  line-height: 19.36px;
 }
 
 .duration-hint {
@@ -634,10 +644,11 @@ defineExpose({ setCourseAndTask })
 .tp-head {
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 14px;
+  line-height: 21.12px;
 }
 
 .tp-task {
@@ -645,14 +656,16 @@ defineExpose({ setCourseAndTask })
   align-items: center;
   gap: 6px;
   margin-top: 8px;
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-primary);
   flex-wrap: wrap;
+  line-height: 21.12px;
 }
 
 .tp-actual {
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   color: var(--secondary);
+  line-height: 17.6px;
 }
 
 .tp-task.idle {
@@ -671,10 +684,11 @@ defineExpose({ setCourseAndTask })
 }
 
 .q-title {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--text-primary);
   font-weight: 600;
   margin-bottom: 14px;
+  line-height: 22.88px;
 }
 
 .finish-radios {
@@ -692,11 +706,11 @@ defineExpose({ setCourseAndTask })
 
 .hint {
   margin-top: 12px;
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--secondary);
   background: rgba(38, 166, 154, 0.08);
   border-radius: 6px;
   padding: 8px;
-  line-height: 1.6;
+  line-height: 19.36px;
 }
 </style>

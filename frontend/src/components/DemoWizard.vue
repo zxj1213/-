@@ -168,12 +168,12 @@ export default { name: 'DemoWizard' }
 }
 
 .wz-note {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--warning);
   background: rgba(255, 152, 0, 0.08);
   border-radius: 6px;
   padding: 8px;
-  line-height: 1.5;
+  line-height: 18.15px;
 }
 
 .wz-step {
@@ -205,11 +205,12 @@ export default { name: 'DemoWizard' }
   background: var(--bg-primary);
   border: 1px solid var(--divider);
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  line-height: 19.36px;
 }
 
 .wz-num.ok {
@@ -220,27 +221,28 @@ export default { name: 'DemoWizard' }
 
 .wz-title {
   flex: 1;
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
+  line-height: 22.88px;
 }
 
 .wz-desc {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
   margin: 6px 0 0 32px;
-  line-height: 1.6;
+  line-height: 19.36px;
 }
 
 .wz-result {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--secondary);
   background: rgba(38, 166, 154, 0.06);
   border-radius: 6px;
   padding: 8px;
   margin: 8px 0 0 32px;
   white-space: pre-wrap;
-  line-height: 1.7;
+  line-height: 20.57px;
 }
 
 .wz-footer {

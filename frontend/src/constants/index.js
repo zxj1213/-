@@ -119,3 +119,20 @@ export function countdown(dateStr) {
 export function generateId() {
   return 'id_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8)
 }
+
+/** 本地截止时间：日期格式按当天结束处理，日期时间保留用户选择的时分。 */
+export function taskDeadlineTime(deadline) {
+  if (typeof deadline !== 'string' || !deadline.trim()) return NaN
+  const value = deadline.trim()
+  return new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T23:59:59` : value.replace(' ', 'T')).getTime()
+}
+
+/** 按剩余实际时长划分优先级；逾期任务仍为紧急。 */
+export function getTaskPriority(deadline, now = Date.now()) {
+  const remaining = taskDeadlineTime(deadline) - now
+  if (!Number.isFinite(remaining)) return '低'
+  if (remaining <= 86400000) return '紧急'
+  if (remaining <= 3 * 86400000) return '高'
+  if (remaining <= 7 * 86400000) return '中'
+  return '低'
+}

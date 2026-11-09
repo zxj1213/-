@@ -289,8 +289,8 @@
       <div class="dialog-hint">支持 PPT / 教材 / 往年题 / 重点笔记等，AI 将按章节解析覆盖范围</div>
       <div class="upload-zone" @click="pickUpload">
         <input ref="uploadFile" type="file" multiple hidden @change="onUploadFile" />
-        <span style="font-size: 32px">📄</span>
-        <span style="font-size: 12px; color: var(--text-hint)">点击选择文件（可多选，单文件 ≤ 10MB）</span>
+        <span style="font-size: calc(2rem * var(--font-scale)); line-height: 56.32px">📄</span>
+        <span style="font-size: calc(0.75rem * var(--font-scale)); line-height: 21.12px; color: var(--text-hint)">点击选择文件（可多选，单文件 ≤ 10MB）</span>
       </div>
     </el-dialog>
   </div>
@@ -566,9 +566,10 @@ function onUploadFile(e) {
 }
 
 .exam-chip .ec-name {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--text-primary);
   white-space: nowrap;
+  line-height: 22.88px;
 }
 
 .exam-chip.active .ec-name {
@@ -576,9 +577,10 @@ function onUploadFile(e) {
 }
 
 .exam-chip .ec-count {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
   margin-top: 2px;
+  line-height: 19.36px;
 }
 
 .exam-chip.active .ec-count {
@@ -602,19 +604,22 @@ function onUploadFile(e) {
 }
 
 .cb-icon {
-  font-size: 26px;
+  font-size: calc(1.625rem * var(--font-scale));
+  line-height: 45.76px;
 }
 
 .cb-title {
-  font-size: 14px;
+  font-size: calc(0.875rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
+  line-height: 24.64px;
 }
 
 .cb-sub {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
   margin-top: 2px;
+  line-height: 19.36px;
 }
 
 .cb-actions {
@@ -637,14 +642,16 @@ function onUploadFile(e) {
 }
 
 .ad-title {
-  font-size: 15px;
+  font-size: calc(0.9375rem * var(--font-scale));
   font-weight: bold;
   color: var(--secondary);
+  line-height: 26.4px;
 }
 
 .ad-time {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 19.36px;
 }
 
 .ad-changes {
@@ -657,7 +664,8 @@ function onUploadFile(e) {
   background: var(--bg-card);
   border-radius: 8px;
   padding: 10px 12px;
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
+  line-height: 21.12px;
 }
 
 .ad-day {
@@ -683,10 +691,10 @@ function onUploadFile(e) {
 
 .ad-explain {
   margin-top: 10px;
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-primary);
   white-space: pre-wrap;
-  line-height: 1.8;
+  line-height: 23.76px;
   font-family: inherit;
   background: var(--bg-card);
   border-radius: 8px;
@@ -703,8 +711,9 @@ function onUploadFile(e) {
 }
 
 .ad-hint {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 19.36px;
 }
 
 .left-col,
@@ -721,15 +730,17 @@ function onUploadFile(e) {
 }
 
 .ov-name {
-  font-size: 17px;
+  font-size: calc(1.0625rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
+  line-height: 29.92px;
 }
 
 .ov-meta {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-secondary);
   margin-top: 4px;
+  line-height: 21.12px;
 }
 
 .ov-count {
@@ -737,14 +748,16 @@ function onUploadFile(e) {
 }
 
 .ov-k {
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 17.6px;
 }
 
 .ov-v {
-  font-size: 22px;
+  font-size: calc(1.375rem * var(--font-scale));
   font-weight: bold;
   color: var(--primary);
+  line-height: 38.72px;
 }
 
 .ov-bottom {
@@ -755,8 +768,9 @@ function onUploadFile(e) {
 }
 
 .ov-mats {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--text-secondary);
+  line-height: 22.88px;
 }
 
 .score-row {
@@ -774,26 +788,30 @@ function onUploadFile(e) {
 }
 
 .sb-k {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 19.36px;
 }
 
 .sb-v {
-  font-size: 24px;
+  font-size: calc(1.5rem * var(--font-scale));
   font-weight: bold;
+  line-height: 42.24px;
 }
 
 .sb-v.primary { color: var(--primary); }
 .sb-v.success { color: var(--success); }
 
 .sb-u {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 21.12px;
 }
 
 .score-arrow {
-  font-size: 20px;
+  font-size: calc(1.25rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 35.2px;
 }
 
 .areas {
@@ -807,24 +825,26 @@ function onUploadFile(e) {
 }
 
 .area-label {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   font-weight: 600;
+  line-height: 21.12px;
 }
 
 .area-label.strong { color: var(--success); }
 .area-label.weak { color: var(--error); }
 
 .area-item {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-secondary);
   margin-top: 2px;
+  line-height: 19.36px;
 }
 
 .trend {
   margin-top: 8px;
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--secondary);
-  line-height: 1.7;
+  line-height: 22.44px;
 }
 
 .prog-stats {
@@ -838,15 +858,17 @@ function onUploadFile(e) {
 }
 
 .ps-k {
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 17.6px;
 }
 
 .ps-v {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
   margin-top: 2px;
+  line-height: 21.12px;
 }
 
 .plan-head {
@@ -856,14 +878,16 @@ function onUploadFile(e) {
 }
 
 .ph-title {
-  font-size: 16px;
+  font-size: calc(1rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
+  line-height: 28.16px;
 }
 
 .phase-chip {
   padding: 3px 8px;
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
+  line-height: 19.36px;
 }
 
 /* 设置弹窗 */
@@ -881,33 +905,36 @@ function onUploadFile(e) {
 
 .su-label {
   width: 90px;
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--text-secondary);
   flex-shrink: 0;
+  line-height: 22.88px;
 }
 
 .su-unit {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 21.12px;
 }
 
 .su-hint {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--secondary);
   background: rgba(38, 166, 154, 0.08);
   border-radius: 6px;
   padding: 8px;
-  line-height: 1.6;
+  line-height: 19.36px;
 }
 
 /* 测验弹窗 */
 .quiz-info {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--secondary);
   background: rgba(38, 166, 154, 0.08);
   border-radius: 6px;
   padding: 8px;
   margin-bottom: 12px;
+  line-height: 21.12px;
 }
 
 .quiz-q {
@@ -927,27 +954,30 @@ function onUploadFile(e) {
 .qq-num {
   font-weight: bold;
   color: var(--primary);
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
+  line-height: 22.88px;
 }
 
 .qq-kp {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--secondary);
   background: rgba(38, 166, 154, 0.1);
   padding: 2px 8px;
   border-radius: 10px;
+  line-height: 19.36px;
 }
 
 .qq-diff {
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   color: #FFB300;
   margin-left: auto;
+  line-height: 17.6px;
 }
 
 .qq-text {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--text-primary);
-  line-height: 1.7;
+  line-height: 24.31px;
   margin-bottom: 8px;
 }
 
@@ -972,9 +1002,10 @@ function onUploadFile(e) {
 }
 
 .qr-title {
-  font-size: 14px;
+  font-size: calc(0.875rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
+  line-height: 24.64px;
 }
 
 .qr-row {
@@ -984,7 +1015,8 @@ function onUploadFile(e) {
   background: var(--bg-primary);
   border-radius: 8px;
   padding: 8px 12px;
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
+  line-height: 21.12px;
 }
 
 .qr-kp {
@@ -1007,9 +1039,9 @@ function onUploadFile(e) {
 }
 
 .qr-weak {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--warning);
-  line-height: 1.6;
+  line-height: 21.12px;
 }
 
 .qr-weak.good {
@@ -1017,9 +1049,9 @@ function onUploadFile(e) {
 }
 
 .qr-explain {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
-  line-height: 1.7;
+  line-height: 20.57px;
   border-top: 1px dashed var(--divider);
   padding-top: 6px;
 }
@@ -1029,10 +1061,11 @@ function onUploadFile(e) {
 }
 
 .ci-q {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
   margin: 12px 0 8px;
+  line-height: 22.88px;
 }
 
 .ci-q:first-child {
@@ -1046,7 +1079,8 @@ function onUploadFile(e) {
 .kr-head {
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
+  line-height: 21.12px;
 }
 
 .kr-name {
@@ -1063,17 +1097,18 @@ function onUploadFile(e) {
 
 .ci-hint {
   margin-top: 12px;
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--secondary);
   background: rgba(38, 166, 154, 0.08);
   border-radius: 6px;
   padding: 8px;
-  line-height: 1.6;
+  line-height: 19.36px;
 }
 
 .dialog-hint {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 21.12px;
 }
 
 .upload-zone {

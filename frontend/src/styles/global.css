@@ -5,6 +5,7 @@
  * ============================================================ */
 
 :root {
+  --font-scale: 1;
   /* 主色调 - 学术蓝 */
   --primary: #416CE0;
   --primary-light: #64B5F6;
@@ -45,6 +46,12 @@
   --el-color-primary-light-8: #D7E9FA;
   --el-color-primary-light-9: #EBF4FD;
   --el-color-primary-dark-2: #1565C0;
+  --el-font-size-extra-large: calc(1.25rem * var(--font-scale));
+  --el-font-size-large: calc(1.125rem * var(--font-scale));
+  --el-font-size-medium: calc(1rem * var(--font-scale));
+  --el-font-size-base: calc(0.875rem * var(--font-scale));
+  --el-font-size-small: calc(0.8125rem * var(--font-scale));
+  --el-font-size-extra-small: calc(0.75rem * var(--font-scale));
 }
 
 /* 暗色主题 */
@@ -74,7 +81,8 @@ body {
     'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   color: var(--text-primary);
-  line-height: 1.6;
+  font-size: calc(1rem * var(--font-scale));
+  line-height: 28px;
 }
 
 #app {
@@ -125,31 +133,37 @@ body {
   border-radius: 8px;
   background: linear-gradient(135deg, var(--primary), var(--secondary));
   color: #fff;
-  font-size: 15px;
+  font-size: calc(0.9375rem * var(--font-scale));
   font-weight: bold;
   display: flex;
   align-items: center;
   justify-content: center;
+  line-height: 26.4px;
 }
 
 .logo-name {
-  font-size: 18px;
+  width: 140px;
+  white-space: nowrap;
+  font-size: calc(1.125rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
+  line-height: 31.68px;
 }
 
 .logo-name small {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   font-weight: normal;
   color: var(--text-hint);
   margin-left: 4px;
   letter-spacing: 1px;
+  line-height: 21.12px;
 }
 
 .app-title {
-  font-size: 17px;
+  font-size: calc(1.0625rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
+  line-height: 29.92px;
 }
 
 .header-spacer {
@@ -163,10 +177,13 @@ body {
 }
 
 .ai-chip {
+  justify-content: center;
+  width: 96px;
+  height: 34px;
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--primary);
   background: rgba(30, 136, 229, 0.1);
   padding: 7px 14px;
@@ -174,6 +191,7 @@ body {
   cursor: pointer;
   transition: all 0.2s;
   border: none;
+  line-height: 22.88px;
 }
 
 .ai-chip:hover {
@@ -202,13 +220,19 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: calc(1rem * var(--font-scale));
+  line-height: 28.16px;
 }
 
 .header-user .name {
-  font-size: 13px;
+  width: 120px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: calc(0.8125rem * var(--font-scale));
   color: var(--text-primary);
   font-weight: 500;
+  line-height: 22.88px;
 }
 
 /* ---------- 主体：侧边栏 + 内容 ---------- */
@@ -236,7 +260,7 @@ body {
   padding: 11px 14px;
   margin-bottom: 8px;
   border-radius: 10px;
-  font-size: 14px;
+  font-size: calc(0.875rem * var(--font-scale));
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s;
@@ -245,10 +269,12 @@ body {
   background: transparent;
   width: 100%;
   text-align: left;
+  line-height: 24.64px;
 }
 
 .menu-item .menu-icon {
-  font-size: 18px;
+  font-size: calc(1.125rem * var(--font-scale));
+  line-height: 31.68px;
 }
 
 .menu-item:hover {
@@ -289,8 +315,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: calc(1.25rem * var(--font-scale));
   flex-shrink: 0;
+  line-height: 35.2px;
 }
 
 .sidebar-user .info {
@@ -298,20 +325,22 @@ body {
 }
 
 .sidebar-user .name {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 22.88px;
 }
 
 .sidebar-user .school {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-hint);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 19.36px;
 }
 
 /* 内容区 */
@@ -349,15 +378,17 @@ body {
 }
 
 .card-title .t {
-  font-size: 16px;
+  font-size: calc(1rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
+  line-height: 28.16px;
 }
 
 .card-title .more {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--primary);
   cursor: pointer;
+  line-height: 21.12px;
 }
 
 /* ---------- 通用胶囊 ---------- */
@@ -366,7 +397,7 @@ body {
   align-items: center;
   padding: 6px 14px;
   border-radius: 16px;
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   cursor: pointer;
   border: 1px solid var(--divider);
   background: var(--bg-card);
@@ -374,6 +405,7 @@ body {
   white-space: nowrap;
   transition: all 0.2s;
   user-select: none;
+  line-height: 22.88px;
 }
 
 .chip.active {
@@ -398,21 +430,22 @@ body {
 .tag {
   display: inline-flex;
   align-items: center;
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   padding: 3px 8px;
   border-radius: 4px;
-  line-height: 1.4;
+  line-height: 16.94px;
 }
 
 /* ---------- 分区标题 ---------- */
 .section-title {
-  font-size: 15px;
+  font-size: calc(0.9375rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
   margin: 0 0 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  line-height: 26.4px;
 }
 
 /* ---------- 桌面栅格工具 ---------- */
@@ -498,8 +531,9 @@ body {
 }
 
 .empty-state .icon {
-  font-size: 42px;
+  font-size: calc(2.625rem * var(--font-scale));
   opacity: 0.5;
+  line-height: 73.92px;
 }
 
 /* ---------- 数字人 ---------- */
@@ -510,10 +544,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: calc(1.5rem * var(--font-scale));
   background: linear-gradient(135deg, var(--primary), var(--secondary));
   box-shadow: 0 2px 10px rgba(30, 136, 229, 0.4);
   position: relative;
+  line-height: 42.24px;
 }
 
 .digital-human.speaking::after {
@@ -527,12 +562,13 @@ body {
 
 /* ---------- 计时器 ---------- */
 .timer-display {
-  font-size: 44px;
+  font-size: calc(2.75rem * var(--font-scale));
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: 2px;
   color: var(--text-primary);
   font-family: 'SF Mono', Consolas, 'Courier New', monospace;
+  line-height: 77.44px;
 }
 
 /* ---------- 路径图节点 ---------- */
@@ -540,9 +576,9 @@ body {
   padding: 6px 10px;
   border-radius: 8px;
   color: #fff;
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   text-align: center;
-  line-height: 1.4;
+  line-height: 15.4px;
   white-space: pre-line;
   flex: 1;
   max-width: 82px;
@@ -553,8 +589,8 @@ body {
   max-width: 78%;
   padding: 10px 12px;
   border-radius: 14px;
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: calc(0.8125rem * var(--font-scale));
+  line-height: 22.88px;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -605,7 +641,9 @@ body {
   }
 
   .menu-item {
-    width: auto;
+    width: 94px;
+    height: 44px;
+    justify-content: center;
     flex-shrink: 0;
     margin-bottom: 0;
     padding: 8px 12px;
@@ -630,8 +668,8 @@ body {
 }
 
 /* Shared spacing and controls: section gap > card padding > item gap. */
-.section-title .more { font-size: 13px; font-weight: 400; color: var(--primary); cursor: pointer; }
-.app-title { padding-left: 22px; border-left: 1px solid var(--divider); font-size: 15px; }
+.section-title .more { font-size: calc(0.8125rem * var(--font-scale)); font-weight: 400; color: var(--primary); cursor: pointer; line-height: 22.88px; }
+.app-title { padding-left: 22px; border-left: 1px solid var(--divider); font-size: calc(0.9375rem * var(--font-scale)); line-height: 26.4px; }
 .logo-mark { background: var(--primary); }
 .sidebar-user { border: 1px solid var(--divider); background: transparent; }
 .menu-item.active { background: var(--accent-soft); }
@@ -669,7 +707,7 @@ body {
   .header-user { padding: 4px; }
   .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
   .card-title { align-items: flex-start; }
-  .card-title .t { font-size: 15px; }
+  .card-title .t { font-size: calc(0.9375rem * var(--font-scale)); line-height: 26.4px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }

@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 """AI 路由：对话(大模型+规则降级) / OCR"""
 from fastapi import APIRouter, File, UploadFile, HTTPException
+from starlette.concurrency import run_in_threadpool
 import logging
 logger = logging.getLogger(__name__)
 
 from app.schemas import ChatRequest, ChatResponse
-from app.services import llm
+from app.config import settings
+from app.services import llm, paddle_ocr
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
@@ -49,15 +51,20 @@ async def chat(req: ChatRequest):
 
 @router.post("/ocr")
 async def ocr(file: UploadFile = File(...)):
-    """OCR 识别截图：接入视觉大模型；未启用时返回规则占位结果"""
-    if file.content_type not in {"image/png", "image/jpeg", "image/webp"}:
+    """返回截图原文和待用户确认的任务。"""
+    if file.content_type not in paddle_ocr.IMAGE_FORMATS:
         raise HTTPException(415, "Only PNG, JPEG and WebP images are supported")
     data = await file.read(5 * 1024 * 1024 + 1)
     if len(data) > 5 * 1024 * 1024:
         raise HTTPException(413, "Image exceeds 5 MiB")
+    if not data:
+        raise HTTPException(422, "Image is empty")
     try:
-        text = await llm.ocr_with_llm(data, file.content_type)
+        if settings.OCR_ENGINE == "llm":
+            return await llm.ocr_with_llm(data, file.content_type)
+        return await run_in_threadpool(paddle_ocr.recognize, data, file.content_type)
+    except paddle_ocr.InvalidImage as exc:
+        raise HTTPException(422, "Invalid image") from exc
     except Exception as exc:
         logger.warning("ocr unavailable: %s", type(exc).__name__)
         raise HTTPException(503, "OCR unavailable; no tasks were extracted")
-    return {"recognizedText": text, "tasks": [], "engine": "llm"}

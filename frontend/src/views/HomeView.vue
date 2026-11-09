@@ -45,28 +45,27 @@
     </div>
 
     <!-- 中部：AI 推荐 + 学习计时器 -->
-    <div class="grid-main-side">
-      <!-- AI 学习推荐(自适应引擎实时生成，折叠展示) -->
+    <div class="grid-main-side focus-overview">
+      <!-- AI 学习推荐(自适应引擎实时生成) -->
       <div class="card rec-card fade-up">
         <div class="card-title">
           <span class="t">AI 学习建议</span>
           <span class="more" @click="$router.push('/exam')">查看学习计划 ›</span>
         </div>
-        <div class="rec-grid">
-          <div v-for="rec in shownRecs" :key="rec.title" class="rec-item">
-            <span class="rec-icon">{{ rec.icon }}</span>
-            <div class="rec-body">
-              <div class="rec-title">
-                {{ rec.title }}
-                <span class="tag" :style="reasonStyle(rec.reason)">{{ rec.reason }}</span>
+        <div class="rec-scroll" role="region" aria-label="学习建议列表" tabindex="0">
+          <div class="rec-grid">
+            <div v-for="rec in store.recommendations" :key="rec.title" class="rec-item">
+              <span class="rec-icon">{{ rec.icon }}</span>
+              <div class="rec-body">
+                <div class="rec-title">
+                  {{ rec.title }}
+                  <span class="tag" :style="reasonStyle(rec.reason)">{{ rec.reason }}</span>
+                </div>
+                <div class="rec-desc">{{ rec.desc }}</div>
               </div>
-              <div class="rec-desc">{{ rec.desc }}</div>
+              <el-icon v-if="rec.courseId" class="rec-arrow" @click="focusCourse(rec)"><VideoPlay /></el-icon>
             </div>
-            <el-icon v-if="rec.courseId" class="rec-arrow" @click="focusCourse(rec)"><VideoPlay /></el-icon>
           </div>
-        </div>
-        <div v-if="store.recommendations.length > 4" class="rec-more" @click="showAllRecs = !showAllRecs">
-          {{ showAllRecs ? '收起' : `展开全部 ${store.recommendations.length} 条建议` }}
         </div>
       </div>
 
@@ -162,7 +161,6 @@ const route = useRoute()
 const router = useRouter()
 const timerRef = ref(null)
 const showDemo = ref(false)
-const showAllRecs = ref(false)
 const today = todayStr()
 const weekday = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][new Date().getDay()]
 
@@ -185,10 +183,6 @@ const studyMinutes = computed(() =>
 )
 
 const featuredCourses = computed(() => store.courses.slice(0, 4))
-
-const shownRecs = computed(() =>
-  showAllRecs.value ? store.recommendations : store.recommendations.slice(0, 4)
-)
 
 /** 今日必做：优先级最高且截止最近的待办任务 */
 const topTask = computed(() => {
@@ -293,14 +287,16 @@ function startFocus(course, task = null) {
 }
 
 .hello {
-  font-size: 26px;
+  font-size: calc(1.625rem * var(--font-scale));
   font-weight: bold;
+  line-height: 45.76px;
 }
 
 .sub {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   opacity: 0.9;
   margin-top: 4px;
+  line-height: 22.88px;
 }
 
 .must-do {
@@ -316,23 +312,26 @@ function startFocus(course, task = null) {
 }
 
 .must-label {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   font-weight: bold;
   background: var(--accent-soft);
   color: var(--primary);
   padding: 3px 8px;
   border-radius: 6px;
   white-space: nowrap;
+  line-height: 21.12px;
 }
 
 .must-title {
-  font-size: 14px;
+  font-size: calc(0.875rem * var(--font-scale));
   font-weight: 600;
+  line-height: 24.64px;
 }
 
 .must-deadline {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   opacity: 0.85;
+  line-height: 19.36px;
 }
 
 .hero-actions {
@@ -374,23 +373,51 @@ function startFocus(course, task = null) {
 }
 
 .hs-v {
-  font-size: 22px;
+  font-size: calc(1.375rem * var(--font-scale));
   font-weight: bold;
+  line-height: 38.72px;
 }
 
 .hs-k {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   opacity: 0.9;
   margin-top: 3px;
   white-space: nowrap;
+  line-height: 19.36px;
+}
+
+.focus-overview {
+  grid-auto-rows: 1fr;
 }
 
 .rec-card {
   display: flex;
   flex-direction: column;
+  align-self: stretch;
+  /* 计时器决定行高，推荐列表不参与行高计算。 */
+  contain: size;
+  container-type: inline-size;
+}
+
+.rec-card .card-title {
+  flex-shrink: 0;
+}
+
+.rec-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  /* 将滚动条放进面板的留白，保留建议卡片的列宽。 */
+  margin-inline-end: -16px;
+}
+
+.rec-scroll:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .rec-grid {
+  width: 100cqi;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
@@ -407,7 +434,8 @@ function startFocus(course, task = null) {
 }
 
 .rec-icon {
-  font-size: 20px;
+  font-size: calc(1.25rem * var(--font-scale));
+  line-height: 35.2px;
 }
 
 .rec-body {
@@ -416,34 +444,27 @@ function startFocus(course, task = null) {
 }
 
 .rec-title {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   font-weight: 600;
   color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
+  line-height: 22.88px;
 }
 
 .rec-desc {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--font-scale));
   color: var(--text-secondary);
   margin-top: 8px;
-  line-height: 1.8;
+  line-height: 23.76px;
 }
 
 .rec-arrow {
   color: var(--primary);
   cursor: pointer;
   margin-top: 4px;
-}
-
-.rec-more {
-  text-align: center;
-  font-size: 12px;
-  color: var(--primary);
-  cursor: pointer;
-  padding: 8px 0 2px;
 }
 
 .exam-strip {
@@ -456,12 +477,13 @@ function startFocus(course, task = null) {
 }
 
 .exam-pill {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-secondary);
   background: var(--bg-primary);
   padding: 5px 10px;
   border-radius: 12px;
   cursor: pointer;
+  line-height: 19.36px;
 }
 
 .exam-pill b {
@@ -482,29 +504,33 @@ function startFocus(course, task = null) {
 }
 
 .cc-name {
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--font-scale));
   font-weight: bold;
   color: var(--text-primary);
+  line-height: 22.88px;
 }
 
 .cc-type {
-  font-size: 9px;
+  font-size: calc(0.5625rem * var(--font-scale));
   color: var(--primary);
   background: rgba(30, 136, 229, 0.1);
   padding: 2px 6px;
   border-radius: 4px;
+  line-height: 15.84px;
 }
 
 .cc-cn {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--font-scale));
   color: var(--text-secondary);
+  line-height: 19.36px;
 }
 
 .cc-mastery {
   display: flex;
   justify-content: space-between;
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   color: var(--text-hint);
+  line-height: 17.6px;
 }
 
 .cc-pct {
@@ -516,9 +542,9 @@ function startFocus(course, task = null) {
 .cc-pct.weak { color: var(--warning); }
 
 .cc-weak {
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--font-scale));
   color: var(--warning);
-  line-height: 1.5;
+  line-height: 16.5px;
   min-height: 30px;
 }
 
@@ -533,16 +559,15 @@ function startFocus(course, task = null) {
 }
 .hero-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; gap: 16px; }
 .hs-item { text-align: left; padding: 18px 22px; min-width: 0; }
-.hs-v { font-size: 28px; color: var(--primary); font-variant-numeric: tabular-nums; }
-.hs-k { color: var(--text-secondary); font-size: 12px; }
-.rec-more { padding-top: 18px; }
+.hs-v { font-size: calc(1.75rem * var(--font-scale)); color: var(--primary); font-variant-numeric: tabular-nums; line-height: 49.28px; }
+.hs-k { color: var(--text-secondary); font-size: calc(0.75rem * var(--font-scale)); line-height: 21.12px; }
 @media (max-width: 600px) {
   .hero { padding: 24px 20px; gap: 22px; }
-  .hello { font-size: 23px; }
+  .hello { font-size: calc(1.4375rem * var(--font-scale)); line-height: 40.48px; }
   .hero-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .hs-item { padding: 16px; }
   .hero-actions { gap: 10px; }
-  .hero-actions .el-button { font-size: 12px; padding: 10px 14px; }
+  .hero-actions .el-button { font-size: calc(0.75rem * var(--font-scale)); padding: 10px 14px; line-height: 21.12px; }
   .rec-grid { grid-template-columns: 1fr; }
 }
 </style>
