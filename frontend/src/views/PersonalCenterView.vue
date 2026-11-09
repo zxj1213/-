@@ -16,13 +16,16 @@
       <h1 id="personal-section-title" class="personal-section-title">{{ activeSection.label }}</h1>
     <!-- 用户头部 -->
     <div v-if="activeSection.id === 'profile'" class="card user-head">
-      <div class="avatar" @click="showEdit = true">👤</div>
+      <button type="button" class="avatar" aria-label="点击修改头像" :disabled="avatarBusy" @click="pickAvatar">
+        <img v-if="store.userInfo?.avatar" :src="store.userInfo.avatar" alt="" /><template v-else>👤</template>
+      </button>
       <div class="uh-body" @click="showEdit = true">
-        <div class="uh-name">{{ store.currentUserName }} <span class="uh-edit">›</span></div>
+        <div class="uh-name">{{ store.userInfo?.name || store.currentUserName }} <span class="uh-edit">›</span></div>
         <div class="uh-school">{{ store.userInfo?.school || '学校待填写' }} · {{ store.userInfo?.major || '专业待填写' }}</div>
-        <div class="uh-id">{{ grade }} · {{ store.userInfo?.email || '邮箱待填写' }}</div>
+        <div class="uh-id">{{ grade }} · {{ store.userInfo?.accountIdentifier || '手机号或邮箱待绑定' }}</div>
       </div>
       <el-button round plain type="primary" @click="showEdit = true">编辑资料</el-button>
+      <el-button v-if="canBind" round plain @click="openBinding">绑定手机号或邮箱</el-button>
     </div>
 
       <!-- 桌面服务卡片预览 -->
@@ -92,14 +95,14 @@
     <div v-if="activeSection.id === 'account'" class="card account-card">
       <div class="card-title">
         <span class="t">🔑 账号与数据</span>
-        <span class="tag" style="background: #4CAF5015; color: #4CAF50">本地演示账号</span>
+        <span class="tag" style="background: #4CAF5015; color: #4CAF50">{{ store.authState.serverAccountId ? '统一账号' : '本地账号' }}</span>
       </div>
       <div class="ac-info">
-        当前账号：<b>{{ store.currentUserName }}</b> · 数据按用户隔离存储在本机浏览器（localStorage）
-        ，不同账号之间互不可见。生产环境由服务端完成权限隔离。
+        当前账号 <b>{{ store.userInfo?.accountIdentifier || store.currentUserName }}</b>。
+        绑定后的个人资料和头像跨端同步，任务和知识库文件保存在本机浏览器。
       </div>
       <div class="ac-actions">
-        <el-button round plain @click="configureBackend">连接受保护的 AI 服务</el-button>
+        <el-button v-if="canBind" round plain @click="openBinding">绑定手机号或邮箱</el-button>
         <el-button round plain type="primary" @click="doExport">📦 导出数据</el-button>
         <el-button round plain type="danger" @click="doDelete">🗑 删除全部数据</el-button>
         <el-button round plain type="warning" @click="doLogout">🚪 退出登录</el-button>
@@ -181,6 +184,15 @@
           </div>
           <el-switch v-model="store.settings.privacyMode" @change="store.save()" />
         </div>
+        <el-divider style="margin: 0" />
+        <div class="setting-item preference-item">
+          <span class="si-emoji" aria-hidden="true">🔑</span>
+          <div class="si-body">
+            <div class="si-title">账号密码</div>
+            <div class="si-sub">更新当前账号的登录密码</div>
+          </div>
+          <el-button plain aria-haspopup="dialog" @click="showChangePassword = true">修改密码</el-button>
+        </div>
       </div>
 
       <!-- 加密私有库 -->
@@ -221,7 +233,13 @@
 
     <!-- 编辑资料弹窗 -->
     <el-dialog v-model="showEdit" title="编辑个人资料" width="88%" align-center>
-      <div class="edit-row"><span class="er-label">用户名</span><el-input :model-value="store.currentUserName" size="small" readonly /></div>
+      <div class="edit-row"><span class="er-label">头像</span>
+        <el-button plain size="small" :loading="avatarBusy" @click="pickAvatar">更换头像</el-button>
+        <span class="avatar-hint">JPG、PNG、WebP，最大 5 MiB</span>
+      </div>
+      <div class="edit-row"><span class="er-label">用户名</span>
+        <el-input v-model="editForm.name" aria-label="用户名" maxlength="40" size="small" :readonly="!store.authState.serverAccountId" />
+      </div>
       <div class="edit-row"><span class="er-label">学校</span><el-input v-model="editForm.school" size="small" /></div>
       <div class="edit-row"><span class="er-label">专业</span><el-input v-model="editForm.major" size="small" /></div>
       <div class="edit-row">
@@ -230,7 +248,12 @@
           <span>{{ editForm.grade || '请选择年级' }}</span><span aria-hidden="true">›</span>
         </button>
       </div>
-      <div class="edit-row"><span class="er-label">邮箱</span><el-input v-model="editForm.email" size="small" /></div>
+      <div v-if="store.userInfo?.accountIdentifier" class="edit-row"><span class="er-label">登录账号</span>
+        <el-input :model-value="store.userInfo.accountIdentifier" aria-label="登录账号" size="small" readonly />
+      </div>
+      <div v-else-if="!store.authState.serverAccountId" class="edit-row"><span class="er-label">邮箱</span>
+        <el-input v-model="editForm.email" size="small" />
+      </div>
       <el-drawer v-model="showGradePicker" title="选择年级" direction="btt" size="auto" append-to-body>
         <div class="grade-options">
           <button v-for="option in gradeOptions" :key="option" type="button" class="grade-option"
@@ -241,7 +264,43 @@
       </el-drawer>
       <template #footer>
         <el-button @click="showEdit = false">取消</el-button>
-        <el-button type="primary" @click="saveProfile">保存</el-button>
+        <el-button type="primary" :loading="profileSaving" :disabled="avatarBusy" @click="saveProfile">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <AvatarEditor v-model="showAvatarEditor" :saving="avatarBusy" @confirm="saveAvatar" />
+
+    <el-dialog v-model="showBinding" title="绑定登录账号" width="min(92%, 460px)" align-center>
+      <p>请选择手机号或邮箱作为固定登录账号。绑定后，用户名、学校、专业、年级和头像会在同一账号的设备间同步。</p>
+      <el-form label-position="top" @submit.prevent="confirmBinding">
+        <el-form-item label="手机号或邮箱"><el-input v-model="bindingForm.identifier" maxlength="254" autocomplete="username" /></el-form-item>
+        <el-form-item label="当前密码"><el-input v-model="bindingForm.password" type="password" autocomplete="current-password" show-password /></el-form-item>
+        <el-form-item v-if="!store.authState.serverAccountId" label="设置登录密码（至少 8 位）">
+          <el-input v-model="bindingForm.newPassword" type="password" autocomplete="new-password" show-password />
+        </el-form-item>
+        <el-button type="primary" native-type="submit" :loading="bindingBusy">确认绑定</el-button>
+      </el-form>
+    </el-dialog>
+
+    <el-dialog v-model="showChangePassword" title="修改密码" width="min(88%, 460px)" align-center>
+      <el-form id="change-password-form" :model="changePasswordForm" label-position="top" @submit.prevent="submitPasswordChange">
+        <el-form-item label="当前密码" required>
+          <el-input v-model="changePasswordForm.current" name="current-password" type="password"
+            autocomplete="current-password" show-password />
+        </el-form-item>
+        <el-form-item label="新密码" required>
+          <el-input v-model="changePasswordForm.next" name="new-password" type="password"
+            autocomplete="new-password" show-password />
+        </el-form-item>
+        <el-form-item label="确认新密码" required>
+          <el-input v-model="changePasswordForm.confirmation" name="confirm-password" type="password"
+            autocomplete="new-password" show-password />
+        </el-form-item>
+        <el-alert v-if="passwordChangeError" :title="passwordChangeError" type="error" :closable="false" show-icon />
+      </el-form>
+      <template #footer>
+        <el-button @click="showChangePassword = false">取消</el-button>
+        <el-button type="primary" native-type="submit" form="change-password-form" :loading="passwordSaving">保存新密码</el-button>
       </template>
     </el-dialog>
 
@@ -260,7 +319,9 @@
 <script setup>
 import { ref, computed, reactive, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { setApiToken } from '../services/api'
+import { bindAccountContact, changeServerPassword, registerAccount, signOut, updateAccountProfile, uploadAccountAvatar, verifyServerPassword } from '../services/api'
+import AvatarEditor from '../components/AvatarEditor.vue'
+import { deleteAccountMaterials } from '../services/knowledgeLibrary'
 import { useAppStore } from '../store'
 import { todayStr, daysBetween, PersonalSections } from '../constants'
 
@@ -271,6 +332,7 @@ const activeSection = computed(() => PersonalSections.find(item => item.id === p
 watch(() => props.section, () => {
   showEdit.value = false
   showPassword.value = false
+  showChangePassword.value = false
   passwordInput.value = ''
   showThemePicker.value = false
 })
@@ -302,7 +364,27 @@ const showGradePicker = ref(false)
 const gradeOptions = ['大一', '大二', '大三', '大四']
 const showPassword = ref(false)
 const passwordInput = ref('')
-const editForm = reactive({ school: '', major: '', grade: '', email: '' })
+const showChangePassword = ref(false)
+const changePasswordForm = reactive({ current: '', next: '', confirmation: '' })
+const passwordChangeError = ref('')
+const passwordSaving = ref(false)
+const editForm = reactive({ name: '', school: '', major: '', grade: '', email: '' })
+const editVersion = ref(0)
+const profileSaving = ref(false)
+const showAvatarEditor = ref(false)
+const avatarBusy = ref(false)
+const avatarVersion = ref(0)
+const showBinding = ref(false)
+const bindingBusy = ref(false)
+const bindingForm = reactive({ identifier: '', password: '', newPassword: '' })
+const canBind = computed(() => !store.userInfo?.accountIdentifier && store.currentUserName !== '演示同学')
+
+watch(showChangePassword, (open) => {
+  if (!open) {
+    Object.assign(changePasswordForm, { current: '', next: '', confirmation: '' })
+    passwordChangeError.value = ''
+  }
+})
 
 watch(showEdit, (open) => {
   if (!open) {
@@ -312,6 +394,7 @@ watch(showEdit, (open) => {
   for (const key of Object.keys(editForm)) {
     editForm[key] = store.userInfo?.[key] || ''
   }
+  editVersion.value = store.userInfo?.profileVersion || 0
   editForm.grade = gradeOptions.includes(grade.value) ? grade.value : ''
 })
 
@@ -369,16 +452,15 @@ function closeThemePicker() {
   themeTrigger.value?.focus()
 }
 
-async function configureBackend() {
-  try {
-    const { value } = await ElMessageBox.prompt('输入服务管理员配置的访问令牌，仅此标签页使用。', '连接 AI 服务', { inputType: 'password' })
-    setApiToken(value)
-    ElMessage.info('访问令牌已设置，下一次 AI 请求将使用此凭据。')
-  } catch { /* 取消 */ }
-}
-
-function passwordAuth() {
-  if (!store.verifyLocalPassword(passwordInput.value)) {
+async function passwordAuth() {
+  if (store.authState?.serverAccountId) {
+    try {
+      await verifyServerPassword(passwordInput.value)
+    } catch (error) {
+      ElMessage.warning(error.response?.status === 403 ? '账号密码错误' : '暂时无法验证账号密码')
+      return
+    }
+  } else if (!store.verifyLocalPassword(passwordInput.value)) {
     ElMessage.warning('账号密码错误')
     return
   }
@@ -389,10 +471,131 @@ function passwordAuth() {
   ElMessage.success('认证成功！私有库已解锁')
 }
 
-function saveProfile() {
-  if (!store.updateProfile({ ...editForm })) return
+async function submitPasswordChange() {
+  if (passwordSaving.value) return
+  const { current, next, confirmation } = changePasswordForm
+  if (!current || !next || !confirmation) {
+    passwordChangeError.value = '请填写当前密码和两次新密码'
+    return
+  }
+  if (next !== confirmation) {
+    passwordChangeError.value = '两次输入的新密码不一致'
+    return
+  }
+  if (store.authState?.serverAccountId) {
+    if (next.length < 8 || next.length > 128 || next === current) {
+      passwordChangeError.value = '请设置与当前密码不同的 8 至 128 位新密码'
+      return
+    }
+    passwordSaving.value = true
+    try {
+      await changeServerPassword(current, next)
+    } catch (error) {
+      passwordChangeError.value = error.response?.status === 403 ? '当前密码不正确' : '修改密码失败，请稍后重试'
+      return
+    } finally {
+      passwordSaving.value = false
+    }
+  } else {
+    const result = store.changePassword(current, next)
+    if (!result.ok) {
+      passwordChangeError.value = result.msg
+      return
+    }
+  }
+  showChangePassword.value = false
+  ElMessage.success('密码已修改，下次请使用新密码登录')
+}
+
+async function saveProfile() {
+  if (profileSaving.value || avatarBusy.value) return
+  if (store.authState.serverAccountId) {
+    if (!editForm.name.trim()) return ElMessage.warning('请填写用户名')
+    profileSaving.value = true
+    try {
+      const profile = await updateAccountProfile({
+        display_name: editForm.name.trim(), school: editForm.school, major: editForm.major,
+        grade: editForm.grade, version: editVersion.value
+      })
+      store.applyAccountProfile(profile)
+    } catch (error) {
+      ElMessage.error(error.response?.status === 409 ? '另一台设备已修改资料，请关闭后重新打开编辑。' : '保存资料失败，请检查输入或网络后重试。')
+      return
+    } finally {
+      profileSaving.value = false
+    }
+  } else if (!store.updateProfile({ ...editForm })) return
   showEdit.value = false
   ElMessage.success('资料已更新')
+}
+
+function pickAvatar() {
+  if (!store.authState.serverAccountId) return ElMessage.info('请先使用统一账号登录或绑定手机号、邮箱。')
+  if (avatarBusy.value || profileSaving.value) return
+  avatarVersion.value = showEdit.value ? editVersion.value : (store.userInfo?.profileVersion || 0)
+  showAvatarEditor.value = true
+}
+
+async function saveAvatar(file) {
+  if (!showAvatarEditor.value || avatarBusy.value || profileSaving.value) return
+  avatarBusy.value = true
+  try {
+    const profile = await uploadAccountAvatar(file, avatarVersion.value)
+    store.applyAccountProfile(profile)
+    if (showEdit.value) editVersion.value = profile.version
+    showAvatarEditor.value = false
+    ElMessage.success('头像已更新')
+  } catch (error) {
+    ElMessage.error(error.response?.status === 409 ? '资料已在其他设备更新，请关闭后重新打开头像编辑。' : '头像上传失败，请更换图片或稍后重试。')
+  } finally {
+    avatarBusy.value = false
+  }
+}
+
+function openBinding() {
+  Object.assign(bindingForm, { identifier: store.userInfo?.email || '', password: '', newPassword: '' })
+  showBinding.value = true
+}
+
+async function confirmBinding() {
+  if (bindingBusy.value) return
+  const identifier = bindingForm.identifier.trim()
+  const { password, newPassword } = bindingForm
+  if (!identifier || !password) return ElMessage.warning('请填写手机号或邮箱以及当前密码。')
+  const localId = store.currentUserId
+  const serverId = store.authState.serverAccountId
+  if (!serverId && (!store.verifyLocalPassword(password) || newPassword.length < 8 || newPassword.length > 128)) {
+    return ElMessage.warning('请核对当前密码，并设置 8 至 128 位的登录密码。')
+  }
+  bindingBusy.value = true
+  let created
+  try {
+    const { name, school, major, grade, profileVersion } = store.userInfo
+    const displayName = (name || store.currentUserName).slice(0, 40)
+    const fields = {
+      school: (school || '').slice(0, 100), major: (major || '').slice(0, 100),
+      grade: gradeOptions.includes(grade) ? grade : ''
+    }
+    if (serverId) {
+      const initial = !profileVersion ? { ...fields, display_name: displayName, version: 0 } : undefined
+      store.applyAccountProfile(await bindAccountContact(identifier, password, initial))
+    } else {
+      created = await registerAccount(identifier, newPassword, displayName, fields)
+      store.connectServerAccount(identifier, created, { localId })
+    }
+    showBinding.value = false
+    bindingForm.password = ''
+    bindingForm.newPassword = ''
+    ElMessage.success('绑定成功，下次请使用绑定的手机号或邮箱登录')
+  } catch (error) {
+    if (created) await signOut(created).catch(() => {})
+    const status = error.response?.status
+    ElMessage.error(status === 409 ? '此账号已绑定或该手机号、邮箱已被使用。'
+      : status === 422 ? '请检查手机号或邮箱格式。'
+      : status === 403 ? '当前密码错误或此地址未开放注册。' : '绑定失败，请稍后重试。')
+  } finally {
+    bindingBusy.value = false
+  }
 }
 
 function resetAll() {
@@ -413,12 +616,20 @@ function doExport() {
 
 function doDelete() {
   ElMessageBox.confirm(
-    '将删除当前账号的全部学习数据（任务/计划/测验记录/专注记录），且不可恢复。确定继续？',
+    '将删除当前账号在此浏览器的学习数据，包括上传的知识库资料，且不可恢复。确定继续？',
     '删除全部数据',
     { confirmButtonText: '删除', cancelButtonText: '取消', type: 'error' }
-  ).then(() => {
-    store.deleteData()
-    ElMessage.success('数据已删除')
+  ).then(async () => {
+    const owner = store.currentUserId
+    try {
+      await signOut(store.authState?.serverAccountId)
+      await deleteAccountMaterials(owner)
+      if (store.currentUserId !== owner) return
+      store.deleteData()
+      ElMessage.success('数据已删除')
+    } catch {
+      ElMessage.error('无法完成数据删除，请检查连接及浏览器存储后重试。')
+    }
   }).catch(() => {})
 }
 
@@ -427,8 +638,14 @@ function doLogout() {
     confirmButtonText: '退出',
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(() => {
-    store.logout()
+  }).then(async () => {
+    const owner = store.currentUserId
+    try {
+      await signOut(store.authState?.serverAccountId)
+      if (store.currentUserId === owner) store.logout()
+    } catch {
+      ElMessage.error('无法结束服务端会话，请检查连接后重试')
+    }
   }).catch(() => {})
 }
 </script>
@@ -527,9 +744,13 @@ function doLogout() {
   display: flex;
   align-items: center;
   gap: 16px;
+  flex-wrap: wrap;
 }
 
 .avatar {
+  border: 0;
+  padding: 0;
+  overflow: hidden;
   width: 64px;
   height: 64px;
   border-radius: 50%;
@@ -542,6 +763,8 @@ function doLogout() {
   flex-shrink: 0;
   line-height: 59.84px;
 }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-hint { color: var(--text-secondary); font-size: calc(0.75rem * var(--font-scale)); }
 
 .uh-body {
   flex: 1;

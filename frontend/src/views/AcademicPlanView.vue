@@ -82,29 +82,35 @@
         </div>
       </template>
 
-      <!-- ============ 竞赛推荐 ============ -->
+      <!-- ============ 竞赛库与推荐 ============ -->
       <template v-else-if="currentSub === 'competition'">
-        <div class="sub-title">竞赛推荐</div>
-        <div class="grid-3">
-          <div v-for="comp in store.competitions" :key="comp.id" class="card comp-card fade-up">
-            <div class="comp-top">
-              <div>
-                <div class="comp-name">{{ comp.name }}</div>
-                <div class="comp-meta">{{ comp.level }} · {{ comp.category }}</div>
-              </div>
-              <div class="comp-score">
-                <div class="cs-v" :style="{ color: matchColor(comp.matchScore) }">{{ comp.matchScore }}%</div>
-                <div class="cs-k">匹配度</div>
+        <el-tabs v-model="competitionTab">
+          <el-tab-pane label="认定竞赛库" name="catalog">
+            <CompetitionCatalog />
+          </el-tab-pane>
+          <el-tab-pane label="竞赛推荐（演示）" name="recommendations" lazy>
+            <div class="grid-3">
+              <div v-for="comp in store.competitions" :key="comp.id" class="card comp-card fade-up">
+                <div class="comp-top">
+                  <div>
+                    <div class="comp-name">{{ comp.name }}</div>
+                    <div class="comp-meta">{{ comp.level }} · {{ comp.category }}</div>
+                  </div>
+                  <div class="comp-score">
+                    <div class="cs-v" :style="{ color: matchColor(comp.matchScore) }">{{ comp.matchScore }}%</div>
+                    <div class="cs-k">匹配度</div>
+                  </div>
+                </div>
+                <div class="comp-desc">{{ comp.description }}</div>
+                <div v-if="comp.skillGaps?.length" class="comp-gap">💡 需提升: {{ comp.skillGaps.join('、') }}</div>
+                <div class="comp-foot">
+                  <span class="comp-deadline">报名截止: {{ comp.registrationDeadline }}</span>
+                  <el-button size="small" round plain type="primary">查看详情</el-button>
+                </div>
               </div>
             </div>
-            <div class="comp-desc">{{ comp.description }}</div>
-            <div v-if="comp.skillGaps?.length" class="comp-gap">💡 需提升: {{ comp.skillGaps.join('、') }}</div>
-            <div class="comp-foot">
-              <span class="comp-deadline">报名截止: {{ comp.registrationDeadline }}</span>
-              <el-button size="small" round plain type="primary">查看详情</el-button>
-            </div>
-          </div>
-        </div>
+          </el-tab-pane>
+        </el-tabs>
       </template>
 
       <!-- ============ 升学/就业推荐 ============ -->
@@ -128,29 +134,7 @@
       </template>
 
       <!-- ============ 知识库 ============ -->
-      <template v-else-if="currentSub === 'knowledge'">
-        <div class="sub-title-row">
-          <span class="sub-title" style="margin: 0">知识库</span>
-          <el-button size="small" type="primary" round @click="showUpload = true">
-            <el-icon><Plus /></el-icon>&nbsp;上传资料
-          </el-button>
-        </div>
-        <div class="grid-2">
-          <div v-for="doc in store.knowledgeDocs" :key="doc.id" class="card doc-card">
-            <span class="doc-icon" :style="{ background: 'rgba(100,181,246,0.15)' }">{{ docEmoji(doc.type) }}</span>
-            <div class="doc-body">
-              <div class="doc-title">{{ doc.title }}</div>
-              <div class="doc-meta">{{ doc.type }}{{ doc.courseName ? ` · ${doc.courseName}` : '' }} · {{ doc.uploadDate }}</div>
-              <div class="doc-summary">{{ doc.summary }}</div>
-            </div>
-            <el-icon class="doc-arrow"><ArrowRight /></el-icon>
-          </div>
-        </div>
-        <div class="card search-row">
-          <el-icon><Search /></el-icon>
-          <el-input placeholder="在知识库中搜索（RAG智能检索）..." :borderless="true" size="small" />
-        </div>
-      </template>
+      <KnowledgeLibrary v-else-if="currentSub === 'knowledge'" />
 
       <!-- ============ 课程管理 ============ -->
       <template v-else-if="currentSub === 'courses'">
@@ -204,72 +188,20 @@
       </template>
     </div>
 
-    <!-- 上传资料弹窗(B2：解析进度与失败提示) -->
-    <el-dialog v-model="showUpload" title="上传资料到知识库" width="88%" align-center>
-      <div class="dialog-hint">支持 PDF / PPT / Word / 笔记，AI 自动提取章节知识点（单文件 ≤ 10MB）</div>
-      <div class="upload-zone" @click="pickUpload">
-        <input ref="uploadFile" type="file" multiple hidden @change="onUploadFile" />
-        <span style="font-size: calc(2rem * var(--font-scale)); line-height: 56.32px">📄</span>
-        <span style="font-size: calc(0.75rem * var(--font-scale)); line-height: 21.12px; color: var(--text-hint)">点击选择文件（可多选）</span>
-      </div>
-      <div v-if="parsing" class="parse-progress">
-        <el-icon class="is-loading" :size="20"><Loading /></el-icon>
-        <span class="pp-text">AI 正在解析资料并提取知识点...</span>
-      </div>
-      <div v-if="parseErrors.length" class="parse-errors">
-        <div v-for="err in parseErrors" :key="err" class="pe-item">⚠️ {{ err }}</div>
-      </div>
-    </el-dialog>
-
-    <!-- 知识点确认弹窗(B2：解析结果人工确认/修改) -->
-    <el-dialog v-model="showKpConfirm" title="确认解析出的知识点" width="88%" align-center>
-      <div class="dialog-hint">
-        AI 从资料中提取了以下知识点，可修改名称或删除，确认后进入学习计划流程（来源可追溯）
-      </div>
-      <div class="kc-course-row">
-        <span class="kc-label">归属课程</span>
-        <el-select v-model="kpConfirmCourseId" size="small" style="flex: 1">
-          <el-option v-for="c in store.courses" :key="c.id" :label="c.name" :value="c.id" />
-        </el-select>
-      </div>
-      <div v-for="(kp, i) in kpConfirmList" :key="i" class="kc-row">
-        <el-input v-model="kp.name" size="small" class="kc-name" />
-        <span class="kc-source" :title="kp.source">📎 {{ kp.source }}</span>
-        <el-icon class="kc-del" @click="kpConfirmList.splice(i, 1)"><Delete /></el-icon>
-      </div>
-      <div class="kc-add" @click="kpConfirmList.push({ name: '', source: '人工添加' })">+ 手动添加知识点</div>
-      <template #footer>
-        <el-button @click="showKpConfirm = false">取消</el-button>
-        <el-button type="primary" :disabled="!kpConfirmList.filter(k => k.name.trim()).length" @click="confirmKps">
-          确认 {{ kpConfirmList.filter(k => k.name.trim()).length }} 个知识点
-        </el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
-import { ElMessage } from 'element-plus'
 import { useAppStore } from '../store'
-import { simulateMaterialParse } from '../services/ai'
+import KnowledgeLibrary from '../components/KnowledgeLibrary.vue'
 import AcademicPortraitCard from '../components/AcademicPortraitCard.vue'
+import CompetitionCatalog from '../components/CompetitionCatalog.vue'
 
 const store = useAppStore()
 
 const currentSub = ref('overview')
-const showUpload = ref(false)
-const uploadFile = ref(null)
-const parsing = ref(false)
-const parseErrors = ref([])
-const showKpConfirm = ref(false)
-const kpConfirmList = ref([])
-const kpConfirmCourseId = ref('course_001')
-
-function pickUpload() {
-  uploadFile.value?.click()
-}
-
+const competitionTab = ref('catalog')
 const entries = [
   { key: 'overview', label: '画像', emoji: '🪪', color: '#1E88E5' },
   { key: 'competition', label: '竞赛', emoji: '🏆', color: '#FF9800' },
@@ -320,89 +252,6 @@ function memoryLabel(type) {
   return map[type] || '其他'
 }
 
-function docEmoji(type) {
-  const map = { PPT: '📊', PDF: '📄', 笔记: '📝', 教材: '📖', 论文: '📄' }
-  return map[type] || '📄'
-}
-
-/** 上传 → 解析(B2)：校验限制 → 提取知识点 → 人工确认 → 进入计划 */
-async function onUploadFile(e) {
-  const files = Array.from(e.target.files || [])
-  if (!files.length) return
-  parseErrors.value = []
-  const MAX = 10 * 1024 * 1024
-  const validFiles = []
-  for (const f of files) {
-    if (f.size === 0) {
-      parseErrors.value.push(`「${f.name}」是空文件，已跳过`)
-    } else if (f.size > MAX) {
-      parseErrors.value.push(`「${f.name}」超过 10MB 限制，已跳过`)
-    } else if (!/\.(pdf|ppt|pptx|doc|docx|txt|md)$/i.test(f.name)) {
-      parseErrors.value.push(`「${f.name}」格式不支持（支持 PDF/PPT/Word/文本），已跳过`)
-    } else {
-      validFiles.push(f)
-    }
-  }
-  if (!validFiles.length) return
-
-  // 解析进度
-  parsing.value = true
-  const allKps = []
-  const docInfos = []
-  for (const f of validFiles) {
-    // 模拟异步解析(后端在线时调用真实大模型解析)
-    await new Promise(r => setTimeout(r, 700))
-    try {
-      const result = simulateMaterialParse(f.name, f.size)
-      ElMessage.warning('当前为演示解析：知识点来自文件名示例，未读取文件内容。')
-      allKps.push(...result.kps)
-      const ext = f.name.split('.').pop().toLowerCase()
-      const typeMap = { pdf: 'PDF', ppt: 'PPT', pptx: 'PPT', doc: '笔记', docx: '笔记', txt: '笔记', md: '笔记' }
-      docInfos.push({ file: f, type: typeMap[ext] || '其他', result })
-    } catch (err) {
-      parseErrors.value.push(`「${f.name}」解析失败：${err.message || '未知错误'}`)
-    }
-  }
-  parsing.value = false
-  showUpload.value = false
-
-  if (!allKps.length) {
-    ElMessage.error('解析失败，请检查文件后重试')
-    return
-  }
-
-  // 解析结果 → 人工确认弹窗
-  kpConfirmList.value = allKps
-  const lowerName = validFiles[0].name.toLowerCase()
-  if (lowerName.includes('算法')) kpConfirmCourseId.value = 'course_002'
-  else if (lowerName.includes('机器') || lowerName.includes('machine')) kpConfirmCourseId.value = 'course_005'
-  else kpConfirmCourseId.value = 'course_001'
-  pendingDocs.value = docInfos
-  showKpConfirm.value = true
-}
-
-const pendingDocs = ref([])
-
-/** 确认知识点：写入知识库 + 课程知识点表(可追溯来源) */
-function confirmKps() {
-  const kps = kpConfirmList.value.filter(k => k.name.trim())
-  if (!kps.length) return
-  store.addKnowledgePoints(kpConfirmCourseId.value, kps.map(k => ({ name: k.name.trim(), source: k.source })))
-  for (const d of pendingDocs.value) {
-    const course = store.courses.find(c => c.id === kpConfirmCourseId.value)
-    store.addKnowledgeDoc({
-      title: d.file.name,
-      type: d.type,
-      courseName: course?.name || '',
-      summary: d.result.summary,
-      chunks: d.result.chunks
-    })
-  }
-  showKpConfirm.value = false
-  kpConfirmList.value = []
-  pendingDocs.value = []
-  ElMessage.success(`已确认 ${kps.length} 个知识点并加入学习计划流程`)
-}
 </script>
 
 <style scoped>
@@ -714,68 +563,6 @@ function confirmKps() {
   line-height: 22.88px;
 }
 
-.doc-card {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.doc-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(1.5rem * var(--font-scale));
-  flex-shrink: 0;
-  line-height: 42.24px;
-}
-
-.doc-body {
-  flex: 1;
-  min-width: 0;
-}
-
-.doc-title {
-  font-size: calc(0.875rem * var(--font-scale));
-  font-weight: 600;
-  color: var(--text-primary);
-  line-height: 24.64px;
-}
-
-.doc-meta {
-  font-size: calc(0.6875rem * var(--font-scale));
-  color: var(--text-hint);
-  margin-top: 2px;
-  line-height: 19.36px;
-}
-
-.doc-summary {
-  font-size: calc(0.75rem * var(--font-scale));
-  color: var(--text-secondary);
-  margin-top: 3px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  line-height: 21.12px;
-}
-
-.doc-arrow {
-  color: var(--text-hint);
-  font-size: calc(1.125rem * var(--font-scale));
-  line-height: 31.68px;
-}
-
-.search-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 16px;
-  color: var(--text-hint);
-  max-width: 560px;
-}
-
 .train-card {
   margin-bottom: 16px;
 }
@@ -880,99 +667,6 @@ function confirmKps() {
   line-height: 22.88px;
 }
 
-.dialog-hint {
-  font-size: calc(0.75rem * var(--font-scale));
-  color: var(--text-hint);
-  line-height: 21.12px;
-}
-
-.upload-zone {
-  margin-top: 10px;
-  height: 140px;
-  border: 1.5px dashed var(--divider);
-  border-radius: 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  cursor: pointer;
-}
-
-.parse-progress {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 10px;
-  font-size: calc(0.75rem * var(--font-scale));
-  color: var(--primary);
-  line-height: 21.12px;
-}
-
-.pp-text {
-  color: var(--text-secondary);
-}
-
-.parse-errors {
-  margin-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.pe-item {
-  font-size: calc(0.6875rem * var(--font-scale));
-  color: var(--error);
-  line-height: 19.36px;
-}
-
-.kc-course-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 12px 0;
-}
-
-.kc-label {
-  font-size: calc(0.8125rem * var(--font-scale));
-  color: var(--text-secondary);
-  white-space: nowrap;
-  line-height: 22.88px;
-}
-
-.kc-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.kc-name {
-  flex: 1;
-}
-
-.kc-source {
-  font-size: calc(0.625rem * var(--font-scale));
-  color: var(--text-hint);
-  max-width: 180px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  line-height: 17.6px;
-}
-
-.kc-del {
-  cursor: pointer;
-  color: var(--error);
-}
-
-.kc-add {
-  font-size: calc(0.75rem * var(--font-scale));
-  color: var(--primary);
-  cursor: pointer;
-  padding: 6px 0;
-  line-height: 21.12px;
-}
 .quick-entries { overflow-x: auto; }
 .quick-entry { flex-shrink: 0; white-space: nowrap; }
 @media (max-width: 600px) {

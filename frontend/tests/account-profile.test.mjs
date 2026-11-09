@@ -32,6 +32,23 @@ function setup() {
   return { store: freshStore(), freshStore, localStorage, document: ctx.document }
 }
 
+test('binding a legacy account keeps its local identity and removes the local password hash', () => {
+  const { store, freshStore } = setup()
+  store.login('迁移同学', 'old-password')
+  const oldId = store.currentUserId
+  store.updateProfile({ school: '武汉理工大学' })
+  store.connectServerAccount('迁移同学', 'a'.repeat(32))
+  assert.equal(store.currentUserId, oldId)
+  assert.equal(store.userInfo.school, '武汉理工大学')
+  assert.equal(store._readUsers()[0].hash, undefined)
+  assert.equal(store.authState.serverAccountId, 'a'.repeat(32))
+  assert.throws(() => store.connectServerAccount('迁移同学', 'b'.repeat(32)))
+  const restored = freshStore()
+  restored.init()
+  assert.equal(restored.authState.serverAccountId, 'a'.repeat(32))
+  assert.equal(restored.currentUserId, oldId)
+})
+
 test('registration links profile identity to account and starts with empty personal fields', () => {
   const { store } = setup()
   const result = store.login('  小林  ', 'pass1234')
@@ -77,6 +94,36 @@ test('switching accounts keeps personal fields isolated', () => {
   store.login('甲同学', 'pass1234')
   assert.equal(store.userInfo.name, '甲同学')
   assert.equal(store.userInfo.school, '甲学校')
+})
+
+test('changing the password persists for the same account and keeps its data', () => {
+  const { store, freshStore } = setup()
+  store.login('小林', 'old-pass')
+  const accountId = store.currentUserId
+  store.updateProfile({ school: '原学校' })
+
+  assert.equal(store.changePassword('old-pass', 'new-pass').ok, true)
+  const refreshed = freshStore()
+  refreshed.init()
+  assert.equal(refreshed.currentUserId, accountId)
+  assert.equal(refreshed.verifyLocalPassword('old-pass'), false)
+  assert.equal(refreshed.verifyLocalPassword('new-pass'), true)
+  refreshed.logout()
+  assert.equal(refreshed.login('小林', 'old-pass').ok, false)
+  assert.equal(refreshed.login('小林', 'new-pass').ok, true)
+  assert.equal(refreshed.userInfo.school, '原学校')
+})
+
+test('validation and storage failures leave the current password usable', () => {
+  const { store, localStorage } = setup()
+  store.login('小林', 'old-pass')
+  assert.equal(store.changePassword('wrong-pass', 'new-pass').ok, false)
+  assert.equal(store.changePassword('old-pass', '123').ok, false)
+  assert.equal(store.changePassword('old-pass', 'old-pass').ok, false)
+  localStorage.setItem = () => { throw new Error('Storage unavailable') }
+  assert.equal(store.changePassword('old-pass', 'new-pass').ok, false)
+  assert.equal(store.verifyLocalPassword('old-pass'), true)
+  assert.equal(store.verifyLocalPassword('new-pass'), false)
 })
 
 test('existing profiles are linked on refresh without losing school information', () => {

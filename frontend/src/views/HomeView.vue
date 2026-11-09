@@ -45,28 +45,27 @@
     </div>
 
     <!-- 中部：AI 推荐 + 学习计时器 -->
-    <div class="grid-main-side">
-      <!-- AI 学习推荐(自适应引擎实时生成，折叠展示) -->
+    <div class="grid-main-side focus-overview">
+      <!-- AI 学习推荐(自适应引擎实时生成) -->
       <div class="card rec-card fade-up">
         <div class="card-title">
           <span class="t">AI 学习建议</span>
           <span class="more" @click="$router.push('/exam')">查看学习计划 ›</span>
         </div>
-        <div class="rec-grid">
-          <div v-for="rec in shownRecs" :key="rec.title" class="rec-item">
-            <span class="rec-icon">{{ rec.icon }}</span>
-            <div class="rec-body">
-              <div class="rec-title">
-                {{ rec.title }}
-                <span class="tag" :style="reasonStyle(rec.reason)">{{ rec.reason }}</span>
+        <div class="rec-scroll" role="region" aria-label="学习建议列表" tabindex="0">
+          <div class="rec-grid">
+            <div v-for="rec in store.recommendations" :key="rec.title" class="rec-item">
+              <span class="rec-icon">{{ rec.icon }}</span>
+              <div class="rec-body">
+                <div class="rec-title">
+                  {{ rec.title }}
+                  <span class="tag" :style="reasonStyle(rec.reason)">{{ rec.reason }}</span>
+                </div>
+                <div class="rec-desc">{{ rec.desc }}</div>
               </div>
-              <div class="rec-desc">{{ rec.desc }}</div>
+              <el-icon v-if="rec.courseId" class="rec-arrow" @click="focusCourse(rec)"><VideoPlay /></el-icon>
             </div>
-            <el-icon v-if="rec.courseId" class="rec-arrow" @click="focusCourse(rec)"><VideoPlay /></el-icon>
           </div>
-        </div>
-        <div v-if="store.recommendations.length > 4" class="rec-more" @click="showAllRecs = !showAllRecs">
-          {{ showAllRecs ? '收起' : `展开全部 ${store.recommendations.length} 条建议` }}
         </div>
       </div>
 
@@ -162,7 +161,6 @@ const route = useRoute()
 const router = useRouter()
 const timerRef = ref(null)
 const showDemo = ref(false)
-const showAllRecs = ref(false)
 const today = todayStr()
 const weekday = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][new Date().getDay()]
 
@@ -185,10 +183,6 @@ const studyMinutes = computed(() =>
 )
 
 const featuredCourses = computed(() => store.courses.slice(0, 4))
-
-const shownRecs = computed(() =>
-  showAllRecs.value ? store.recommendations : store.recommendations.slice(0, 4)
-)
 
 /** 今日必做：优先级最高且截止最近的待办任务 */
 const topTask = computed(() => {
@@ -392,12 +386,38 @@ function startFocus(course, task = null) {
   line-height: 19.36px;
 }
 
+.focus-overview {
+  grid-auto-rows: 1fr;
+}
+
 .rec-card {
   display: flex;
   flex-direction: column;
+  align-self: stretch;
+  /* 计时器决定行高，推荐列表不参与行高计算。 */
+  contain: size;
+  container-type: inline-size;
+}
+
+.rec-card .card-title {
+  flex-shrink: 0;
+}
+
+.rec-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  /* 将滚动条放进面板的留白，保留建议卡片的列宽。 */
+  margin-inline-end: -16px;
+}
+
+.rec-scroll:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .rec-grid {
+  width: 100cqi;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
@@ -445,15 +465,6 @@ function startFocus(course, task = null) {
   color: var(--primary);
   cursor: pointer;
   margin-top: 4px;
-}
-
-.rec-more {
-  text-align: center;
-  font-size: calc(0.75rem * var(--font-scale));
-  color: var(--primary);
-  cursor: pointer;
-  padding: 8px 0 2px;
-  line-height: 21.12px;
 }
 
 .exam-strip {
@@ -550,7 +561,6 @@ function startFocus(course, task = null) {
 .hs-item { text-align: left; padding: 18px 22px; min-width: 0; }
 .hs-v { font-size: calc(1.75rem * var(--font-scale)); color: var(--primary); font-variant-numeric: tabular-nums; line-height: 49.28px; }
 .hs-k { color: var(--text-secondary); font-size: calc(0.75rem * var(--font-scale)); line-height: 21.12px; }
-.rec-more { padding-top: 18px; }
 @media (max-width: 600px) {
   .hero { padding: 24px 20px; gap: 22px; }
   .hello { font-size: calc(1.4375rem * var(--font-scale)); line-height: 40.48px; }

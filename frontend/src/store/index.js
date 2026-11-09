@@ -5,13 +5,14 @@
  * - 计划调整保留历史快照，支持确认/恢复
  */
 import { ElMessage } from 'element-plus'
-import { setApiToken } from '../services/api'
 import { defineStore } from 'pinia'
 import { StorageConstants, todayStr, nowStr, addDays, generateId, getTaskPriority } from '../constants'
 import * as mock from '../mock/data'
 import {
   recordPractice, recordPracticeBatch, generateRecommendations, replanByResults
 } from '../services/adaptive'
+
+const MIN_PASSWORD_LENGTH = 4
 
 function deepClone(obj) {
   return JSON.parse(JSON.stringify(obj))
@@ -162,8 +163,9 @@ export const useAppStore = defineStore('app', {
       if (!this.authState) this.authState = { isAuthenticated: true }
       this.authState.currentUserId = user.id
       this.authState.currentUserName = user.name
-      // 账号身份来自注册记录，个人资料只保存可编辑的补充信息。
-      this.userInfo = { ...(this.userInfo || {}), id: user.id, name: user.name }
+      this.authState.serverAccountId = user.serverId || null
+      const cachedName = user.serverId && this.userInfo?.profileVersion > 0 ? this.userInfo.name : user.name
+      this.userInfo = { ...(this.userInfo || {}), id: user.id, name: cachedName }
       this.save()
     },
 
@@ -171,7 +173,7 @@ export const useAppStore = defineStore('app', {
     login(name, password) {
       name = (name || '').trim()
       if (!name || !password) return { ok: false, msg: '请输入用户名和密码' }
-      if (password.length < 4) return { ok: false, msg: '密码至少 4 位' }
+      if (password.length < MIN_PASSWORD_LENGTH) return { ok: false, msg: `密码至少 ${MIN_PASSWORD_LENGTH} 位` }
 
       const users = this._readUsers()
       let user = users.find(u => u.name === name)
@@ -190,11 +192,68 @@ export const useAppStore = defineStore('app', {
       return { ok: true, msg: '欢迎回来，' + user.name, registered }
     },
 
+    connectServerAccount(name, serverId, { reuseLocal = true, localId } = {}) {
+      const users = this._readUsers()
+      let user = users.find(item => item.serverId === serverId)
+      if (!user && (reuseLocal || localId)) user = users.find(item => localId ? item.id === localId : item.name === name)
+      if (user?.serverId && user.serverId !== serverId) throw new Error('本地记录已绑定其他服务账号')
+      if (!user) {
+        user = { id: generateId(), name, createdAt: nowStr() }
+        users.push(user)
+      }
+      user.serverId = serverId
+      delete user.hash
+      this._writeUsers(users)
+      localStorage.setItem(StorageConstants.KEY_CURRENT_USER, user.id)
+      this._loadUserState(user)
+      this.applyTheme()
+    },
+
+    applyAccountProfile(profile) {
+      if (!profile || profile.account_id !== this.authState?.serverAccountId ||
+          profile.version < (this.userInfo?.profileVersion || 0)) return
+      const cached = this.userInfo || {}
+      const fields = profile.version > 0 ? {
+        name: profile.display_name, school: profile.school, major: profile.major, grade: profile.grade,
+        avatar: profile.avatar
+      } : { name: profile.display_name }
+      this.userInfo = { ...cached, ...fields, accountIdentifier: profile.identifier || cached.accountIdentifier || '',
+        bindingKind: profile.binding_kind || cached.bindingKind || '', profileVersion: profile.version }
+      this.save()
+    },
+
+    matchesLegacyPassword(user, password) {
+      return !!user?.hash && user.hash === demoHash(password)
+    },
+
+    changePassword(currentPassword, newPassword) {
+      const users = this._readUsers()
+      const user = users.find(u => u.id === this.currentUserId)
+      if (!user) return { ok: false, msg: '请先登录再修改密码' }
+      if (typeof currentPassword !== 'string' || !currentPassword || user.hash !== demoHash(currentPassword)) {
+        return { ok: false, msg: '当前密码不正确' }
+      }
+      if (typeof newPassword !== 'string' || newPassword.length < MIN_PASSWORD_LENGTH) {
+        return { ok: false, msg: `新密码至少 ${MIN_PASSWORD_LENGTH} 位` }
+      }
+      const newHash = demoHash(newPassword)
+      if (newHash === user.hash) return { ok: false, msg: '请设置与当前密码不同的新密码' }
+
+      user.hash = newHash
+      try {
+        this._writeUsers(users)
+      } catch {
+        return { ok: false, msg: '密码保存失败，请检查浏览器存储设置后重试' }
+      }
+      return { ok: true }
+    },
+
     /** 退出登录：持久化当前状态并回到登录页 */
     logout() {
-      setApiToken(null)
       this.save()
-      localStorage.removeItem(StorageConstants.KEY_CURRENT_USER)
+      if (localStorage.getItem(StorageConstants.KEY_CURRENT_USER) === this.currentUserId) {
+        localStorage.removeItem(StorageConstants.KEY_CURRENT_USER)
+      }
       Object.assign(this.$state, normalizeState(null))
       this.initialized = true
       this.applyTheme()
@@ -213,13 +272,14 @@ export const useAppStore = defineStore('app', {
 
     /** 删除当前账号全部数据 */
     deleteData() {
-      setApiToken(null)
       const id = this.currentUserId
       if (id) {
         localStorage.removeItem(StorageConstants.stateKeyOf(id))
         const users = this._readUsers().filter(u => u.id !== id)
         this._writeUsers(users)
-        localStorage.removeItem(StorageConstants.KEY_CURRENT_USER)
+        if (localStorage.getItem(StorageConstants.KEY_CURRENT_USER) === id) {
+          localStorage.removeItem(StorageConstants.KEY_CURRENT_USER)
+        }
       }
       Object.assign(this.$state, normalizeState(null))
     },
@@ -264,13 +324,15 @@ export const useAppStore = defineStore('app', {
     resetData() {
       const uid = this.currentUserId
       const uname = this.currentUserName
+      const serverAccountId = this.authState?.serverAccountId
       const profile = this.userInfo ? { ...this.userInfo } : null
       localStorage.removeItem(uid ? StorageConstants.stateKeyOf(uid) : StorageConstants.KEY_APP_STATE)
       this.loadMockData()
       if (uid) {
         this.authState.currentUserId = uid
         this.authState.currentUserName = uname
-        this.userInfo = { ...profile, id: uid, name: uname }
+        this.authState.serverAccountId = serverAccountId || null
+        this.userInfo = { ...profile, id: uid, name: profile?.name || uname }
       }
       this.save()
     },
