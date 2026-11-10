@@ -50,6 +50,12 @@ export function deleteAccountMaterials(owner) {
   })
 }
 
+/** 删除单份资料（含正文索引与原始文件） */
+export function deleteMaterial(owner, id) {
+  if (!owner || !id || typeof indexedDB === 'undefined') return Promise.resolve()
+  return transact('readwrite', documents => documents.delete([owner, id]))
+}
+
 export function sourceLabel(chunk) {
   const unit = { page: '页', slide: '张幻灯片', paragraph: '段' }[chunk.kind]
   return '第 ' + chunk.position + ' ' + unit

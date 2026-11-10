@@ -834,6 +834,12 @@ export const useAppStore = defineStore('app', {
       this.save()
     },
 
+    /** 删除"仅资料信息"型知识库条目 */
+    removeKnowledgeDoc(docId) {
+      this.knowledgeDocs = this.knowledgeDocs.filter(d => d.id !== docId)
+      this.save()
+    },
+
     addExamMaterial(examId, material) {
       const exam = this.exams.find(e => e.id === examId)
       if (exam) {

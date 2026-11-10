@@ -16,7 +16,10 @@
     <el-alert v-if="storageError" :title="storageError" type="warning" :closable="false" />
     <div v-if="results.length" class="grid-2">
       <article v-for="{ doc, field, hits } in results" :key="doc.id" class="card doc-card">
-        <div class="doc-title">{{ doc.title }}</div>
+        <div class="doc-title-row">
+          <span class="doc-title">{{ doc.title }}</span>
+          <el-button link type="danger" :disabled="removing === doc.id" @click="removeDoc(doc)">删除</el-button>
+        </div>
         <div class="library-note">
           {{ doc.type }}{{ doc.courseName ? ' · ' + doc.courseName : '' }} · {{ doc.uploadDate }}
           <el-tag v-if="!doc.file" size="small" type="info">仅资料信息</el-tag>
@@ -94,11 +97,11 @@
 
 <script setup>
 import { computed, onScopeDispose, ref, shallowRef, watch } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAppStore } from '../store'
 import { generateId, todayStr } from '../constants'
 import { extractMaterial } from '../services/api'
-import { loadMaterials, saveMaterials, searchMaterials, sourceLabel } from '../services/knowledgeLibrary'
+import { deleteMaterial, loadMaterials, saveMaterials, searchMaterials, sourceLabel } from '../services/knowledgeLibrary'
 
 const store = useAppStore()
 const query = ref('')
@@ -121,6 +124,7 @@ const previewDoc = shallowRef(null)
 const previewIndex = ref(0)
 const previewUrl = ref('')
 const previewChunk = computed(() => previewDoc.value?.chunks[previewIndex.value])
+const removing = ref('')
 
 watch(() => store.currentUserId, async (owner, _, onCleanup) => {
   let current = true
@@ -224,6 +228,41 @@ async function onUpload(event) {
   }
 }
 
+/** 删除单份资料：索引库文件与"仅资料信息"条目分别处理 */
+async function removeDoc(doc) {
+  if (removing.value) return
+  try {
+    await ElMessageBox.confirm(`确定删除「${doc.title}」吗？删除后无法恢复。`, '删除资料', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+  } catch {
+    return
+  }
+  removing.value = doc.id
+  try {
+    if (doc.file) {
+      // 浏览器 IndexedDB 中保存的文件及正文索引
+      const owner = store.currentUserId
+      await deleteMaterial(owner, doc.id)
+      documents.value = documents.value.filter(item => item.id !== doc.id)
+    } else {
+      // 仅资料信息（旧演示条目）
+      store.removeKnowledgeDoc(doc.id)
+    }
+    if (previewDoc.value?.id === doc.id) {
+      showPreview.value = false
+      releasePreview()
+    }
+    ElMessage.success('已删除「' + doc.title + '」')
+  } catch {
+    ElMessage.error('删除失败，请重试。')
+  } finally {
+    removing.value = ''
+  }
+}
+
 async function confirmUpload() {
   const owner = store.currentUserId
   if (!owner || !pending.value.length || saving.value) return
@@ -259,7 +298,8 @@ async function confirmUpload() {
 .search-row { max-width: 680px; }
 .library-note { color: var(--text-secondary); font-size: calc(0.8125rem * var(--font-scale)); }
 .doc-card { min-width: 0; overflow-wrap: anywhere; }
-.doc-title { font-weight: 600; color: var(--text-primary); }
+.doc-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.doc-title { font-weight: 600; color: var(--text-primary); overflow-wrap: anywhere; }
 .doc-summary { margin: 6px 0; color: var(--text-secondary); }
 .source-hits { list-style: none; margin: 8px 0 0; padding: 0; }
 .source-hits li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
