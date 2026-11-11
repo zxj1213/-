@@ -26,12 +26,13 @@
 
       <!-- 主体：左侧导航 + 内容区 -->
       <div class="app-body">
-        <aside class="app-sidebar">
+        <nav ref="mainNavigation" class="app-sidebar" aria-label="主导航" @wheel="scrollNavigation">
           <button
             v-for="tab in tabs"
             :key="tab.path"
             class="menu-item"
             :class="{ active: route.path === tab.path || route.path.startsWith(tab.path + '/') }"
+            :aria-current="route.path === tab.path || route.path.startsWith(tab.path + '/') ? 'page' : undefined"
             @click="goTab(tab.path)"
           >
             <el-icon class="menu-icon"><component :is="tab.icon" /></el-icon>
@@ -47,7 +48,7 @@
               <div class="school">{{ store.userInfo?.school }} · {{ store.userInfo?.major }}</div>
             </div>
           </div>
-        </aside>
+        </nav>
 
         <main class="app-main">
           <div class="content-wrap">
@@ -74,6 +75,7 @@ const store = useAppStore()
 
 const tabs = TABS
 const currentTitle = computed(() => route.meta?.title || '学迹')
+const mainNavigation = ref(null)
 
 const isLoggedIn = computed(() => !!store.currentUserId)
 const savedAccount = store.authState?.serverAccountId
@@ -120,6 +122,7 @@ onMounted(() => {
   window.addEventListener('focus', syncProfile)
   document.addEventListener('visibilitychange', syncProfile)
   window.addEventListener('focus', refreshPriorities)
+  window.addEventListener('resize', revealActiveTab)
   document.addEventListener('visibilitychange', refreshPriorities)
   systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
   systemTheme.addEventListener('change', followSystemTheme)
@@ -131,9 +134,42 @@ onUnmounted(() => {
   window.removeEventListener('focus', syncProfile)
   document.removeEventListener('visibilitychange', syncProfile)
   window.removeEventListener('focus', refreshPriorities)
+  window.removeEventListener('resize', revealActiveTab)
   document.removeEventListener('visibilitychange', refreshPriorities)
   systemTheme?.removeEventListener('change', followSystemTheme)
 })
+
+watch([mainNavigation, () => route.path], revealActiveTab, { flush: 'post' })
+
+function scrollNavigation(event) {
+  const nav = event.currentTarget
+  const maxScroll = nav.scrollWidth - nav.clientWidth
+  if (maxScroll <= 0 || event.ctrlKey || event.deltaX || !event.deltaY || !event.cancelable) return
+
+  let distance = event.deltaY
+  if (event.deltaMode === 1) distance *= 16
+  if (event.deltaMode === 2) distance *= nav.clientWidth
+  const position = Math.max(0, Math.min(maxScroll, nav.scrollLeft + distance))
+  if (position === nav.scrollLeft) return
+
+  event.preventDefault()
+  nav.scrollLeft = position
+}
+
+function revealActiveTab() {
+  const nav = mainNavigation.value
+  if (!nav || nav.scrollWidth <= nav.clientWidth) return
+  const active = nav.querySelector('[aria-current="page"]')
+  if (!active) return
+
+  const bounds = nav.getBoundingClientRect()
+  const tab = active.getBoundingClientRect()
+  const style = getComputedStyle(nav)
+  const left = bounds.left + parseFloat(style.paddingLeft)
+  const right = bounds.left + nav.clientWidth - parseFloat(style.paddingRight)
+  if (tab.left < left) nav.scrollLeft += tab.left - left
+  else if (tab.right > right) nav.scrollLeft += tab.right - right
+}
 
 function goTab(path) {
   if (route.path !== path) router.push(path)

@@ -1,62 +1,72 @@
 <template>
   <div class="card">
     <div class="head">
-      <span class="date">📅 {{ review.date }}</span>
-      <span class="score" :style="{ color: scoreColor }">
-        效率 {{ review.efficiencyScore }}分
+      <span class="date">📅 {{ review.label || review.date }}</span>
+      <span v-if="review.efficiencyScore != null" class="score" :style="{ color: scoreColor }"
+        title="任务完成占 30%，专注时长达成占 70%。没有预计时长时按任务完成率计算。">
+        效率 {{ review.efficiencyScore }} 分
       </span>
     </div>
 
-    <div class="grid">
-      <div class="stat">
-        <div class="v">{{ review.completedCourses }}/{{ review.totalCourses }}</div>
-        <div class="k">课程完成</div>
-      </div>
-      <div class="stat">
-        <div class="v">{{ review.completedTasks }}/{{ review.totalTasks }}</div>
-        <div class="k">任务完成</div>
-      </div>
-      <div class="stat">
-        <div class="v">{{ review.studyHours }}h</div>
-        <div class="k">学习时长</div>
-      </div>
-      <div class="stat">
-        <div class="v">{{ review.exerciseMinutes }}min</div>
-        <div class="k">锻炼时长</div>
-      </div>
+    <div v-if="review.legacy" class="explain">
+      <div class="explain-title">旧版复盘</div>
+      <div class="explain-body">{{ review.deviationExplanation || '此日期保留了补充说明。' }}</div>
     </div>
+    <template v-else>
+      <div v-if="review.hasActivity" class="grid">
+        <div class="stat">
+          <div class="v">{{ review.totalTasks ? `${review.completedTasks}/${review.totalTasks}` : '—' }}</div>
+          <div class="k">任务完成</div>
+        </div>
+        <div class="stat">
+          <div class="v">{{ formatMinutes(review.focusMinutes) }}</div>
+          <div class="k">专注时长</div>
+        </div>
+        <div class="stat">
+          <div class="v">{{ review.plannedMinutes ? formatMinutes(review.plannedMinutes) : '—' }}</div>
+          <div class="k">预计时长</div>
+        </div>
+        <div class="stat">
+          <div class="v">{{ review.sessionCount }}</div>
+          <div class="k">专注次数</div>
+        </div>
+      </div>
 
-    <el-progress
-      :percentage="Math.round((review.studyHours / review.plannedStudyHours) * 100)"
-      :stroke-width="8"
-      color="#1E88E5"
-      style="margin-top: 10px"
-    />
+      <div v-if="review.plannedMinutes" class="progress">
+        <div class="progress-label">时长达成 {{ progress }}%</div>
+        <el-progress :percentage="Math.min(progress, 100)" :show-text="false" :stroke-width="8" color="#1E88E5" />
+      </div>
 
-    <div class="explain">
-      <div class="explain-title">🤖 AI 偏差分析</div>
-      <div class="explain-body">{{ review.deviationExplanation }}</div>
-    </div>
+      <div class="explain">
+        <div class="explain-title">学习情况分析</div>
+        <div class="explain-body">{{ review.deviationExplanation }}</div>
+      </div>
 
-    <div class="suggestions">
-      <div class="suggest-title">💡 次日建议</div>
-      <div v-for="(s, i) in review.suggestions" :key="i" class="suggest-item">• {{ s }}</div>
-    </div>
+      <div class="suggestions">
+        <div class="suggest-title">💡 次日建议</div>
+        <div v-for="(s, i) in review.suggestions" :key="i" class="suggest-item">• {{ s }}</div>
+      </div>
 
-    <!-- 数据来源(A5：复盘基于真实数据，不虚构统计) -->
-    <div v-if="review.dataSources && review.dataSources.length" class="data-sources">
-      <div class="ds-title">📊 数据来源</div>
-      <div v-for="(ds, i) in review.dataSources" :key="i" class="ds-item">• {{ ds }}</div>
+      <div v-if="review.hasActivity" class="data-sources">
+        <div class="ds-title">📊 数据来源</div>
+        <div v-for="(ds, i) in review.dataSources" :key="i" class="ds-item">• {{ ds }}</div>
+      </div>
+    </template>
+
+    <div v-if="review.notes?.length" class="explain review-notes">
+      <div class="explain-title">补充说明</div>
+      <div v-for="(note, index) in review.notes" :key="index" class="explain-body">• {{ note }}</div>
     </div>
 
     <div v-if="showActions" class="actions">
       <el-button size="small" round @click="$emit('add-note')">✏️ 补充说明</el-button>
       <el-button
+        v-if="review.hasActivity || review.userConfirmed"
         size="small" round type="primary"
         :disabled="review.userConfirmed"
         @click="$emit('confirm')"
       >
-        {{ review.userConfirmed ? '✓ 已确认' : '确认并回写画像' }}
+        {{ review.userConfirmed ? '✓ 已确认' : '确认并写入画像' }}
       </el-button>
     </div>
   </div>
@@ -64,6 +74,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { formatMinutes } from '../constants'
 
 const props = defineProps({
   review: { type: Object, required: true },
@@ -71,6 +82,9 @@ const props = defineProps({
 })
 
 defineEmits(['confirm', 'add-note'])
+
+const progress = computed(() => props.review.plannedMinutes
+  ? Math.round(props.review.focusMinutes / props.review.plannedMinutes * 100) : 0)
 
 const scoreColor = computed(() => {
   const s = props.review.efficiencyScore
@@ -125,6 +139,16 @@ const scoreColor = computed(() => {
   line-height: 17.6px;
 }
 
+.progress {
+  margin-top: 10px;
+}
+
+.progress-label {
+  color: var(--text-secondary);
+  font-size: calc(0.75rem * var(--font-scale));
+  margin-bottom: 4px;
+}
+
 .explain {
   margin-top: 12px;
   background: var(--bg-primary);
@@ -145,6 +169,7 @@ const scoreColor = computed(() => {
   color: var(--text-secondary);
   line-height: 22.44px;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .suggestions {

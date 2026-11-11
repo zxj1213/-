@@ -216,6 +216,26 @@ export async function ocrRecognize(file, signal) {
   return result
 }
 
+export async function readTimetableUpload(file, kind, signal) {
+  const form = new FormData()
+  form.append('file', file)
+  try {
+    const { data } = await http.post(`/courses/timetable/${kind}`, form, { signal, timeout: 120000 })
+    return data
+  } catch (error) {
+    if (signal.aborted) throw error
+    const messages = {
+      401: '请先登录本机学迹账号。演示账号可直接导入 CSV。',
+      413: '文件超过 5 MiB，请缩小或拆分后再试。',
+      415: '文件格式不受支持。',
+      422: '文件无法读取。请重新导出课表或更换清晰截图。',
+      503: '本机 OCR 未就绪，请检查 PaddleOCR 和离线模型文件。'
+    }
+    if (error.code === 'ECONNABORTED') throw new Error('处理超时，请缩小文件后重试。')
+    throw new Error(messages[error.response?.status] || '无法连接本机服务，请确认后端已启动。')
+  }
+}
+
 export async function extractMaterial(file, signal) {
   const form = new FormData()
   form.append('file', file)

@@ -11,6 +11,8 @@ const constantsUrl = moduleUrl(read('../src/constants/index.js'))
 const constants = await import(constantsUrl)
 const mock = await import(moduleUrl(read('../src/mock/data.js').replace("'../constants'", JSON.stringify(constantsUrl))))
 const adaptive = await import(moduleUrl(read('../src/services/adaptive.js')))
+const { buildDailyReview } = await import(moduleUrl(read('../src/services/dailyReview.js')))
+const timetable = await import(moduleUrl(read('../src/services/timetable.js').replace("'../constants'", JSON.stringify(constantsUrl))))
 const stripImports = source => source.replace(/import[\s\S]*?from\s+['"][^'"]+['"]/g, '')
 const source = stripImports(read('../src/store/index.js')).replace('export const useAppStore', 'const useAppStore')
 
@@ -22,7 +24,7 @@ function setup() {
     removeItem: key => saved.delete(key)
   }
   const ctx = {
-    ...constants, ...adaptive, mock, defineStore, localStorage,
+    ...constants, ...adaptive, ...timetable, mock, buildDailyReview, defineStore, localStorage,
     setApiToken() {}, ElMessage: { error() {} },
     window: { matchMedia: () => ({ matches: false }) },
     document: { documentElement: { classList: { toggle() {} }, setAttribute() {}, style: { setProperty(key, value) { this[key] = value } } } }
@@ -31,6 +33,96 @@ function setup() {
   const freshStore = () => ctx.makeStore()(createPinia())
   return { store: freshStore(), freshStore, localStorage, document: ctx.document }
 }
+
+test('a confirmed timetable is private to the local account and survives refresh', () => {
+  const { store, freshStore } = setup()
+  store.login('我的课表', 'pass1234')
+  const today = constants.todayStr()
+  const row = timetable.createTimetableRow({ courseName: '大学物理', date: today, periods: '3-4' })
+  assert.equal(store.saveTimetable([row], ''), true)
+  assert.equal(store.scheduledCourses(today)[0].courseName, '大学物理')
+  assert.equal(store.saveTimetable([{ ...row, periods: '' }], ''), false)
+  const restored = freshStore()
+  restored.init()
+  assert.equal(restored.scheduledCourses(today)[0].periods, '3-4')
+  restored.logout()
+  restored.login('另一位同学', 'pass5678')
+  assert.equal(restored.timetable, null)
+})
+
+test('daily review preserves notes and confirmation and updates one saved summary per date', () => {
+  const { store, freshStore } = setup()
+  store.login('复盘测试', 'pass1234')
+  const date = constants.todayStr()
+  assert.deepEqual(Array.from(store.reviews), [])
+  const empty = store.generateTodayReview()
+  assert.equal(empty.hasActivity, false)
+  assert.equal(empty.efficiencyScore, null)
+  assert.equal(store.confirmReview(date), null)
+
+  const task = store.addTask({ title: '练习', deadline: date, status: '待完成', estimatedDuration: 30 })
+  store.completeTask(task.id)
+  store.addSessionLog({ date, minutes: 30 })
+  assert.equal(store.generateTodayReview().efficiencyScore, 100)
+  store.addReviewNote(date, '复习错题')
+  store.confirmReview(date)
+  store.addSessionLog({ date, minutes: 10 })
+  const updated = store.generateTodayReview()
+  assert.equal(updated.id, empty.id)
+  assert.equal(updated.userConfirmed, true)
+  assert.deepEqual(Array.from(updated.notes), ['复习错题'])
+  assert.equal(updated.focusMinutes, 40)
+  assert.equal(updated.efficiencyScore, 100)
+
+  const restored = freshStore()
+  restored.init()
+  assert.equal(restored.reviews.length, 1)
+  assert.equal(restored.reviews[0].userConfirmed, true)
+  assert.equal(restored.reviews[0].notes[0], '复习错题')
+  assert.match(restored.portrait.studyReview.summary, /40 分钟/)
+  const memories = restored.aiMemories.filter(memory => memory.id === 'daily-review-' + date)
+  assert.equal(memories.length, 1)
+  assert.match(memories[0].content, /40 分钟/)
+})
+
+test('legacy review migration drops stock examples and retains authored notes and confirmation', () => {
+  const { store, freshStore, localStorage } = setup()
+  store.login('旧版复盘', 'pass1234')
+  const key = constants.StorageConstants.stateKeyOf(store.currentUserId)
+  const saved = JSON.parse(localStorage.getItem(key))
+  delete saved.reviewDataVersion
+  const date = constants.todayStr()
+  saved.reviews = [
+    { id: 'sample', date: constants.addDays(date, -1), userConfirmed: true,
+      deviationExplanation: '上午完成了数据结构和机器学习课程，下午完成了二叉树作业。' },
+    { id: 'confirmed', date, userConfirmed: true, deviationExplanation: '旧版统计\n\n📝 补充：保留的备注' }
+  ]
+  localStorage.setItem(key, JSON.stringify(saved))
+  const restored = freshStore()
+  restored.init()
+  assert.equal(restored.reviews.length, 1)
+  assert.equal(restored.reviews[0].legacy, true)
+  const updated = restored.generateTodayReview()
+  assert.equal(updated.id, 'confirmed')
+  assert.equal(updated.userConfirmed, true)
+  assert.deepEqual(Array.from(updated.notes), ['保留的备注'])
+})
+
+test('daily review leaves the last saved report intact when browser storage is unavailable', () => {
+  const { store, localStorage } = setup()
+  store.login('存储测试', 'pass1234')
+  const date = constants.todayStr()
+  store.addSessionLog({ date, minutes: 20 })
+  const review = store.generateTodayReview()
+  localStorage.setItem = () => { throw new Error('storage unavailable') }
+  assert.equal(store.addReviewNote(date, '本次未写入'), null)
+  assert.equal(store.confirmReview(date), null)
+  assert.equal(store.reviews[0].id, review.id)
+  assert.equal(store.reviews[0].userConfirmed, false)
+  assert.equal(store.reviews[0].notes.length, 0)
+  assert.equal(store.portrait.studyReview, undefined)
+  assert.equal(store.aiMemories.some(memory => memory.id === 'daily-review-' + date), false)
+})
 
 test('binding a legacy account keeps its local identity and removes the local password hash', () => {
   const { store, freshStore } = setup()

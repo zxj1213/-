@@ -635,6 +635,10 @@ body {
     flex-direction: row;
     align-items: center;
     overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x pinch-zoom;
+    scrollbar-width: thin;
     border-right: none;
     border-bottom: 1px solid var(--divider);
     padding: 6px 10px;
@@ -693,7 +697,7 @@ body {
 }
 @media (max-width: 900px) {
   :root { --section-gap: 24px; --grid-gap: 20px; --card-padding: 22px; }
-  .app-sidebar { flex-shrink: 0; gap: 6px; scrollbar-width: none; }
+  .app-sidebar { gap: 6px; }
   .menu-item { margin-bottom: 0; }
   .content-wrap { padding: 24px 20px 40px; }
   .grid-2, .grid-3, .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }

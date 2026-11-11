@@ -139,6 +139,7 @@
       <!-- ============ 课程管理 ============ -->
       <template v-else-if="currentSub === 'courses'">
         <div class="sub-title">课程管理</div>
+        <TimetablePanel />
         <div class="card train-card">
           <div class="train-info">ℹ {{ store.trainingPlan.school }} · {{ store.trainingPlan.major }}</div>
           <div class="train-stats">
@@ -172,7 +173,7 @@
       <!-- ============ AI记忆库 ============ -->
       <template v-else-if="currentSub === 'memory'">
         <div class="sub-title">AI记忆库</div>
-        <div class="mem-desc">AI从对话中学习你的偏好、习惯和目标，建立持续记忆，让推荐越来越精准</div>
+        <div class="mem-desc">查看已记录的学习偏好、目标和确认后的复盘摘要。</div>
         <div class="grid-2">
           <div v-for="mem in store.aiMemories" :key="mem.id" class="card mem-card">
             <span class="mem-icon" :style="{ background: memoryColor(mem.type) + '20' }">{{ memoryEmoji(mem.type) }}</span>
@@ -192,15 +193,21 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAppStore } from '../store'
 import KnowledgeLibrary from '../components/KnowledgeLibrary.vue'
 import AcademicPortraitCard from '../components/AcademicPortraitCard.vue'
 import CompetitionCatalog from '../components/CompetitionCatalog.vue'
+import TimetablePanel from '../components/TimetablePanel.vue'
 
 const store = useAppStore()
+const route = useRoute()
 
 const currentSub = ref('overview')
+watch(() => route.query.tab, tab => {
+  if (tab === 'courses') currentSub.value = tab
+}, { immediate: true })
 const competitionTab = ref('catalog')
 const entries = [
   { key: 'overview', label: '画像', emoji: '🪪', color: '#1E88E5' },

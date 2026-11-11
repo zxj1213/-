@@ -1,15 +1,16 @@
 <template>
   <div class="card">
-    <div class="title">📊 本周效率趋势</div>
-    <div class="chart">
+    <div class="title">📊 {{ title }}</div>
+    <div v-if="items.length" class="chart">
       <div v-for="item in items" :key="item.date" class="bar-col">
         <span class="val">{{ item.value }}</span>
         <div class="bar-track">
           <div class="bar" :style="{ height: barHeight(item.value), background: barColor(item.value) }"></div>
         </div>
-        <span class="label">{{ item.date.slice(5) }}</span>
+        <span class="label">{{ item.label || item.date.slice(5) }}</span>
       </div>
     </div>
+    <p v-else class="label">暂无可比较的效率分数。</p>
   </div>
 </template>
 
@@ -17,13 +18,14 @@
 import { computed } from 'vue'
 
 const props = defineProps({
-  items: { type: Array, default: () => [] } // [{ date, value }]
+  title: { type: String, required: true },
+  items: { type: Array, default: () => [] }
 })
 
 const max = computed(() => Math.max(100, ...props.items.map(i => i.value)))
 
 function barHeight(value) {
-  return Math.max((value / max.value) * 100, 5) + '%'
+  return (value / max.value) * 100 + '%'
 }
 
 function barColor(value) {
@@ -85,5 +87,6 @@ function barColor(value) {
   color: var(--text-hint);
   margin-top: 4px;
   line-height: 15.84px;
+  text-align: center;
 }
 </style>

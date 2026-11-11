@@ -6,8 +6,10 @@
  */
 import { ElMessage } from 'element-plus'
 import { defineStore } from 'pinia'
-import { StorageConstants, todayStr, nowStr, addDays, generateId, getTaskPriority } from '../constants'
+import { StorageConstants, todayStr, nowStr, generateId, getTaskPriority } from '../constants'
 import * as mock from '../mock/data'
+import { buildDailyReview } from '../services/dailyReview'
+import { coursesOnDate, finalizeTimetable } from '../services/timetable'
 import {
   recordPractice, recordPracticeBatch, generateRecommendations, replanByResults
 } from '../services/adaptive'
@@ -39,6 +41,7 @@ function normalizeState(data) {
     chatMessages: [],
     todayAgenda: null,
     courses: [],
+    timetable: null,
     trainingPlan: null,
     portrait: null,
     competitions: [],
@@ -49,6 +52,7 @@ function normalizeState(data) {
     scoreEstimates: {},
     studyProgress: {},
     planHistory: {},
+    reviewDataVersion: 1,
     reviews: [],
     kpMastery: {},
     sessionLogs: [],
@@ -60,6 +64,28 @@ function normalizeState(data) {
 
   // 任务补齐 actualMinutes
   state.tasks = (state.tasks || []).map(t => ({ actualMinutes: 0, ...t, priority: getTaskPriority(t.deadline) }))
+  if (data && !data.reviewDataVersion) {
+    const demoTasks = mock.getMockTasks()
+    const demoLogs = mock.getMockSessionLogs()
+    for (const task of state.tasks) {
+      if (demoTasks.some(sample => sample.title === task.title && sample.description === task.description &&
+        sample.subTasks[0].id === task.subTasks?.[0]?.id)) task.reviewDemo = true
+    }
+    state.sessionLogs = state.sessionLogs.map(log =>
+      !log.taskId && demoLogs.some(sample => sample.taskTitle === log.taskTitle && sample.courseId === log.courseId &&
+        sample.minutes === log.minutes && sample.correctRate === log.correctRate)
+        ? { ...log, reviewDemo: true } : log
+    )
+    state.reviews = state.reviews.flatMap(review => {
+      const [analysis, ...notes] = (review.deviationExplanation || '').split('\n\n📝 补充：')
+      const isSample = analysis.startsWith('上午完成了数据结构和机器学习课程，下午完成了二叉树作业。')
+      if (isSample && !notes.length) return []
+      return [{
+        id: review.id, date: review.date, notes, deviationExplanation: isSample ? '' : analysis,
+        userConfirmed: review.userConfirmed, legacy: true
+      }]
+    })
+  }
 
   // 考试补齐每日预算
   state.exams = (state.exams || []).map(e => ({ dailyMinutes: 90, ...e }))
@@ -93,6 +119,8 @@ export const useAppStore = defineStore('app', {
     todayTasks: (s) => s.tasks.filter(t => t.status !== '已完成'),
     currentUserId: (s) => s.authState?.currentUserId || null,
     currentUserName: (s) => s.authState?.currentUserName || '',
+    scheduledCourses: (s) => (date) => s.timetable
+      ? coursesOnDate(s.timetable, date) : (s.todayAgenda?.courses || []),
     avgKpMastery: (s) => (courseId) => {
       const kps = Object.values(s.kpMastery[courseId] || {}).filter(k => k.mastery != null)
       if (!kps.length) return 0
@@ -147,7 +175,7 @@ export const useAppStore = defineStore('app', {
       if (saved) {
         Object.assign(this.$state, normalizeState(saved))
       } else {
-        // 新账号：加载演示数据；旧版单用户数据自动迁移给第一个账号
+        // 初始化工作台；旧版单用户数据自动迁移给第一个账号
         const legacy = localStorage.getItem(StorageConstants.KEY_APP_STATE)
         if (legacy) {
           try {
@@ -293,11 +321,12 @@ export const useAppStore = defineStore('app', {
       this.settings = mock.getMockAppSettings()
       this.authState = { isAuthenticated: true, privateLibraryEncrypted: false }
       this.widgetConfig = mock.getMockWidgetConfig()
-      this.tasks = mock.getMockTasks()
+      this.tasks = mock.getMockTasks().map(task => ({ ...task, reviewDemo: true }))
       this.refreshTaskPriorities()
       this.chatMessages = mock.getMockChatMessages()
       this.todayAgenda = mock.getMockTodayAgenda()
       this.courses = mock.getMockCourses()
+      this.timetable = null
       this.trainingPlan = mock.getMockTrainingPlan()
       this.portrait = mock.getMockAcademicPortrait()
       this.competitions = mock.getMockCompetitions()
@@ -305,7 +334,7 @@ export const useAppStore = defineStore('app', {
       this.aiMemories = mock.getMockAIMemories()
       this.exams = mock.getMockExams()
       this.kpMastery = mock.getMockKnowledgePoints()
-      this.sessionLogs = mock.getMockSessionLogs()
+      this.sessionLogs = mock.getMockSessionLogs().map(log => ({ ...log, reviewDemo: true }))
       this.studyPlans = {}
       this.scoreEstimates = {}
       this.studyProgress = {}
@@ -316,7 +345,8 @@ export const useAppStore = defineStore('app', {
         this.scoreEstimates[exam.id] = mock.getMockScoreEstimate(exam.id)
         this.studyProgress[exam.id] = mock.getMockStudyProgress(exam.id)
       }
-      this.reviews = this.buildWeekReviews()
+      this.reviewDataVersion = 1
+      this.reviews = []
       this.save()
     },
 
@@ -326,8 +356,10 @@ export const useAppStore = defineStore('app', {
       const uname = this.currentUserName
       const serverAccountId = this.authState?.serverAccountId
       const profile = this.userInfo ? { ...this.userInfo } : null
+      const timetable = this.timetable
       localStorage.removeItem(uid ? StorageConstants.stateKeyOf(uid) : StorageConstants.KEY_APP_STATE)
       this.loadMockData()
+      this.timetable = timetable
       if (uid) {
         this.authState.currentUserId = uid
         this.authState.currentUserName = uname
@@ -730,102 +762,65 @@ export const useAppStore = defineStore('app', {
     },
 
     // ==================== 每日复盘 ====================
-    buildWeekReviews() {
-      const reviews = []
-      for (let i = 6; i >= 0; i--) {
-        const date = addDays(todayStr(), -i)
-        if (i === 0) {
-          reviews.push(mock.getMockDailyReview(date))
-        } else {
-          const r = mock.getMockDailyReview(date)
-          r.userConfirmed = true
-          r.portraitUpdated = true
-          r.memoryUpdated = true
-          reviews.push(r)
-        }
-      }
-      return reviews
-    },
-
     generateTodayReview() {
       const date = todayStr()
-      const dailyTasks = this.tasks.filter(t => t.deadline?.slice(0, 10) === date || t.completedAt?.slice(0, 10) === date)
-      const totalTasks = dailyTasks.length
-      const doneTasks = dailyTasks.filter(t => t.status === '已完成' && t.completedAt?.slice(0, 10) === date).length
-      const studyMinutes = this.sessionLogs
-        .filter(l => l.date === date)
-        .reduce((a, b) => a + b.minutes, 0)
-      const studyHours = Math.round((studyMinutes / 60) * 10) / 10
-      const plannedHours = dailyTasks.reduce((sum, t) => sum + (t.estimatedDuration || 0), 0) / 60
-      const efficiencyScore = Math.min(
-        100, Math.round((studyHours / Math.max(plannedHours, 0.1)) * 70 +
-          (totalTasks ? (doneTasks / totalTasks) * 30 : 30)))
-
-      const weakKps = []
-      for (const course of this.courses) {
-        const kps = Object.entries(this.kpMastery[course.id] || {})
-          .filter(([, s]) => s.mastery != null && s.mastery < 60)
-        if (kps.length) weakKps.push(`${course.name}:${kps.map(([n]) => n).join('/')}`)
-      }
-
-      const suggestions = []
-      if (weakKps.length) {
-        suggestions.push(`检测到薄弱知识点 ${weakKps.join('、')}，建议明日安排针对性练习，适当减少新知识学习`)
-      }
-      if (studyHours < plannedHours) {
-        suggestions.push(`今日学习 ${studyHours}h，低于计划 ${plannedHours}h，建议明天优先补上进度`)
-      } else {
-        suggestions.push(`今日学习时长达标(${studyHours}h)，保持这个节奏`)
-      }
-      suggestions.push('编程作业建议预留20%缓冲时间应对调试')
-
-      const review = {
-        id: generateId(),
-        date,
-        completedCourses: this.todayAgenda ? this.todayAgenda.courses.length : 2,
-        totalCourses: this.todayAgenda ? this.todayAgenda.courses.length : 2,
-        completedTasks: doneTasks,
-        totalTasks,
-        studyHours,
-        exerciseMinutes: 30,
-        plannedStudyHours: plannedHours,
-        plannedExerciseMinutes: 30,
-        deviationExplanation: studyHours < plannedHours
-          ? `今日实际学习 ${studyHours}h，低于计划 ${plannedHours}h。具体原因需结合学习记录确认。`
-          : `今日完成学习 ${studyHours}h，与计划基本一致。任务完成情况良好，学习节奏稳定。`,
-        efficiencyScore,
-        suggestions,
-        dataSources: [
-          `任务 ${doneTasks}/${totalTasks} 项完成`,
-          `专注 ${studyMinutes} 分钟(${this.sessionLogs.filter(l => l.date === date).length} 次会话)`,
-          weakKps.length ? `薄弱知识点 ${weakKps.length} 处` : '无薄弱知识点'
-        ],
-        portraitUpdated: false,
-        memoryUpdated: false,
-        userConfirmed: false
-      }
-      const idx = this.reviews.findIndex(r => r.date === date)
-      if (idx >= 0) this.reviews[idx] = review
-      else this.reviews.push(review)
-      this.save()
-      return review
+      const previous = this.reviews.find(review => review.date === date)
+      return this.saveReview({
+        ...buildDailyReview(date, this.tasks, this.sessionLogs),
+        id: previous?.id ?? generateId(),
+        notes: previous?.notes ?? [],
+        userConfirmed: previous?.userConfirmed ?? false
+      })
     },
 
     confirmReview(date) {
       const review = this.reviews.find(r => r.date === date)
-      if (!review) return
-      review.userConfirmed = true
-      review.portraitUpdated = true
-      review.memoryUpdated = true
-      if (this.portrait) this.portrait.updatedAt = todayStr()
-      this.save()
+      if (!review?.hasActivity || review.userConfirmed) return null
+      return this.saveReview({ ...review, userConfirmed: true })
     },
 
     addReviewNote(date, note) {
       const review = this.reviews.find(r => r.date === date)
-      if (!review) return
-      review.deviationExplanation += '\n\n📝 补充：' + note
-      this.save()
+      const text = note.trim()
+      if (!review || !text) return null
+      return this.saveReview({ ...review, notes: [...review.notes, text] })
+    },
+
+    saveReview(review) {
+      const previous = { reviews: this.reviews, portrait: this.portrait, aiMemories: this.aiMemories }
+      const reviews = [...this.reviews.filter(item => item.date !== review.date), review]
+        .sort((a, b) => a.date.localeCompare(b.date))
+      this.reviews = reviews
+      if (review.userConfirmed && !review.legacy) {
+        const id = 'daily-review-' + review.date
+        const memory = this.aiMemories.find(item => item.id === id)
+        this.aiMemories = [{
+          id, type: 'context', content: `${review.date} 学习复盘：${review.summary}`,
+          importance: 5, createdAt: memory?.createdAt ?? todayStr(),
+          lastAccessedAt: memory?.lastAccessedAt ?? todayStr(),
+          accessCount: memory?.accessCount ?? 0, relatedTopics: ['每日复盘']
+        }, ...this.aiMemories.filter(item => item.id !== id)]
+        const latest = reviews.findLast(item => item.userConfirmed && !item.legacy)
+        if (this.portrait) {
+          this.portrait = { ...this.portrait, updatedAt: todayStr(),
+            studyReview: { date: latest.date, summary: latest.summary } }
+        }
+      }
+      if (this.save() === false) {
+        Object.assign(this.$state, previous)
+        return null
+      }
+      return review
+    },
+
+    saveTimetable(rows, termStart) {
+      const next = finalizeTimetable(rows, termStart)
+      if (!next || !this.currentUserId) return false
+      const previous = this.timetable
+      this.timetable = next
+      if (this.save() !== false) return true
+      this.timetable = previous
+      return false
     },
 
     // ==================== 知识库 ====================

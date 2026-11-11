@@ -29,7 +29,7 @@
           <div class="hs-v">{{ store.pendingTasks.length }}</div>
           <div class="hs-k">📝 待办任务</div>
         </div>
-        <div class="hs-item" @click="$router.push('/plan')">
+        <div class="hs-item" @click="$router.push({ path: '/plan', query: { tab: 'courses' } })">
           <div class="hs-v">{{ todayCourses.length }}</div>
           <div class="hs-k">📚 今日课程</div>
         </div>
@@ -109,7 +109,7 @@
     <section class="home-section">
     <div class="section-title">
       课程掌握度
-      <span class="more" @click="$router.push('/plan')">课程管理 ›</span>
+      <span class="more" @click="$router.push({ path: '/plan', query: { tab: 'courses' } })">课程管理 ›</span>
     </div>
     <div class="grid-4">
       <div v-for="course in featuredCourses" :key="course.id" class="course-card card fade-up">
@@ -164,9 +164,8 @@ const showDemo = ref(false)
 const today = todayStr()
 const weekday = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][new Date().getDay()]
 
-const todayCourses = computed(() =>
-  store.todayAgenda?.courses || store.courses.slice(0, 2)
-)
+const todayCourses = computed(() => store.timetable || store.todayAgenda?.courses
+  ? store.scheduledCourses(today) : store.courses.slice(0, 2))
 
 const examDays = computed(() => {
   const nearest = store.exams

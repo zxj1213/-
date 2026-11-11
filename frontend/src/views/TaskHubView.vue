@@ -100,7 +100,7 @@
             <div class="agenda-block">
               <div class="ag-title">📚 课程</div>
               <div v-for="c in todayCourses" :key="c.id" class="ag-item">
-                {{ c.courseName }} <span class="ag-meta">{{ c.startTime }}-{{ c.endTime }} · {{ c.classroom }}</span>
+                {{ c.courseName }} <span class="ag-meta">{{ [timeLabel(c), c.classroom].filter(Boolean).join(' · ') }}</span>
               </div>
               <div v-if="!todayCourses.length" class="ag-meta">无课程安排</div>
             </div>
@@ -245,6 +245,7 @@ import { ElMessage } from 'element-plus'
 import { useAppStore } from '../store'
 import { todayStr, nowStr, formatDateCN, generateId, getTaskPriority, taskDeadlineTime } from '../constants'
 import { chatWithAI, ocrRecognize } from '../services/api'
+import { timeLabel } from '../services/timetable'
 import TaskCard from '../components/TaskCard.vue'
 import ChatBubble from '../components/ChatBubble.vue'
 import DigitalHuman from '../components/DigitalHuman.vue'
@@ -283,7 +284,7 @@ const digitalHuman = ref({
 
 const filters = ['全部', '待完成', '已完成', '紧急']
 
-const todayCourses = computed(() => store.todayAgenda?.courses || [])
+const todayCourses = computed(() => store.scheduledCourses(today))
 const todayAgenda = computed(() => store.todayAgenda)
 const aiSuggestions = computed(() => store.todayAgenda?.aiSuggestions || [])
 
@@ -343,7 +344,7 @@ async function onSendMessage() {
     tasks: store.tasks,
     courses: store.courses,
     exams: store.exams,
-    todayAgenda: store.todayAgenda
+    todayAgenda: { ...store.todayAgenda, courses: todayCourses.value }
   }
   const { reply, engine } = await chatWithAI(text, ctx, store.chatMessages)
   store.pushChatMessage({ id: generateId(), role: 'assistant', content: reply, timestamp: nowStr() })

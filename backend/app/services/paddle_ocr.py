@@ -1,6 +1,8 @@
 """Local screenshot transcription and conservative task extraction."""
 from datetime import datetime
 from io import BytesIO
+import os
+from pathlib import Path
 import re
 from threading import Lock
 import unicodedata
@@ -22,27 +24,42 @@ ABSOLUTE_DEADLINE = re.compile(
 
 _engine_lock = Lock()
 _engine = None
+_DETECTION_MODEL = "PP-OCRv5_mobile_det"
+_RECOGNITION_MODEL = "PP-OCRv5_mobile_rec"
 
 
 class InvalidImage(ValueError):
     pass
 
 
+def _cached_model_dirs():
+    root = Path(os.environ.get("PADDLE_PDX_CACHE_HOME") or Path.home() / ".paddlex") / "official_models"
+    directories = [root / _DETECTION_MODEL, root / _RECOGNITION_MODEL]
+    files = ("inference.json", "inference.pdiparams", "inference.yml")
+    return directories if all((directory / file).is_file() for directory in directories for file in files) else []
+
+
 def _get_engine():
     # The caller holds the lock because Paddle predictors share mutable buffers.
     global _engine
     if _engine is None:
+        cached = _cached_model_dirs()
+        options = {}
+        if cached:
+            os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
+            options = {"text_detection_model_dir": str(cached[0]), "text_recognition_model_dir": str(cached[1])}
         from paddleocr import PaddleOCR
 
         _engine = PaddleOCR(
             device="cpu",
-            text_detection_model_name="PP-OCRv5_mobile_det",
-            text_recognition_model_name="PP-OCRv5_mobile_rec",
+            text_detection_model_name=_DETECTION_MODEL,
+            text_recognition_model_name=_RECOGNITION_MODEL,
             use_doc_orientation_classify=False,
             use_doc_unwarping=False,
             use_textline_orientation=False,
             enable_mkldnn=False,
             cpu_threads=4,
+            **options,
         )
     return _engine
 
@@ -138,3 +155,18 @@ def recognize_text(data: bytes, mime_type: str) -> str:
 def recognize(data: bytes, mime_type: str) -> dict:
     text = recognize_text(data, mime_type)
     return {"recognizedText": text, "tasks": extract_tasks(text), "engine": "paddleocr"}
+
+
+def recognize_timetable(data: bytes, mime_type: str) -> list[dict]:
+    image = _read_image(data, mime_type)
+    if not _cached_model_dirs():
+        raise RuntimeError("Local OCR models are missing")
+    with _engine_lock:
+        blocks = []
+        for result in _get_engine().predict(image):
+            for text, box in zip(result["rec_texts"], result["rec_boxes"]):
+                if text.strip():
+                    blocks.append({"text": text.strip()[:300], "box": [int(value) for value in box]})
+                if len(blocks) >= 800:
+                    raise InvalidImage("Too many text regions; crop the timetable and retry")
+        return blocks

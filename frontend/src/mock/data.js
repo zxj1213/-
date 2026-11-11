@@ -603,30 +603,26 @@ export function getMockTodayAgenda() {
   }
 }
 
-/** 模拟每日复盘 */
-export function getMockDailyReview(date) {
-  return {
-    id: generateId(),
-    date,
-    completedCourses: 2,
-    totalCourses: 2,
-    completedTasks: 3,
-    totalTasks: 5,
-    studyHours: 4.5,
-    exerciseMinutes: 30,
-    plannedStudyHours: 5,
-    plannedExerciseMinutes: 30,
-    deviationExplanation: '上午完成了数据结构和机器学习课程，下午完成了二叉树作业。计划复习算法设计的动态规划章节但未能开始，因为数据结构作业比预期耗时更长（多花了1小时调试代码）。整体完成率良好，但算法复习需要补上。',
-    efficiencyScore: 78,
-    suggestions: [
-      '明天优先安排算法设计复习，补上今天的进度',
-      '编程作业建议预留20%缓冲时间应对调试',
-      '今天的英语听力完成度高，保持这个节奏'
-    ],
-    portraitUpdated: false,
-    memoryUpdated: false,
-    userConfirmed: false
-  }
+/** 学习情况不同的演示输入，复盘由与真实记录相同的规则计算。 */
+export function getMockReviewScenarios(today) {
+  const examples = [
+    { label: '无学习记录', tasks: [], sessions: [] },
+    { label: '时长不足', tasks: [['整理课堂笔记', 20, true], ['补做动态规划练习', 55], ['复习算法概念', 30]], sessions: [25, 15] },
+    { label: '按计划完成', tasks: [['复习二叉树', 45, true], ['整理错题', 35, true], ['完成英语听力', 40, true]], sessions: [45, 35, 40] },
+    { label: '用时偏长且有待办', tasks: [['复查测试用例', 20, true], ['定位代码边界错误', 45], ['补写实验结论', 25]], sessions: [50, 35, 25] },
+    { label: '自主学习', tasks: [], sessions: [30, 15] }
+  ]
+  return examples.map(({ label, tasks, sessions }, index) => {
+    const date = addDays(today, index + 1 - examples.length)
+    return {
+      label, date,
+      tasks: tasks.map(([title, estimatedDuration, done]) => ({
+        title, estimatedDuration, deadline: date, completedAt: done ? date : null,
+        status: done ? '已完成' : '待完成'
+      })),
+      sessionLogs: sessions.map(minutes => ({ date, minutes }))
+    }
+  })
 }
 
 /** 模拟知识库文档 */

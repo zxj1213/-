@@ -23,6 +23,7 @@ from app.services import auth
 
 USER_API_PATHS = {
     "/api/ai/chat", "/api/ai/ocr", "/api/materials/extract",
+    "/api/courses/timetable/workbook", "/api/courses/timetable/ocr",
     "/api/auth/password", "/api/auth/verify-password",
 }
 

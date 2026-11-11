@@ -9,6 +9,11 @@
       </div>
     </div>
 
+    <div v-if="portrait.studyReview" class="review-summary">
+      <div class="col-label">最近确认的复盘 · {{ portrait.studyReview.date }}</div>
+      <div class="col-item">{{ portrait.studyReview.summary }}</div>
+    </div>
+
     <!-- 技能 -->
     <div class="skills">
       <div v-for="skill in portrait.skills" :key="skill.name" class="skill">
@@ -74,6 +79,10 @@ defineProps({
   color: var(--text-secondary);
   margin-top: 2px;
   line-height: 19.36px;
+}
+
+.review-summary {
+  margin-top: 14px;
 }
 
 .skills {
